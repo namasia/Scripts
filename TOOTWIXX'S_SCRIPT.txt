@@ -44,9 +44,9 @@ local colorSettings = {
 
 local highlights, nameTags, boxEspCache, tracerCache, skeletonCache = {}, {}, {}, {}, {}
 local currentTab = "Main"
-local aimAssistActive = true
+local aimAssistActive = false
 local fovCircle = nil
-local waitingForKeybind = true
+local waitingForKeybind = false
 
 -- Helper functions
 local function updateCheckbox(btn, state)
@@ -557,22 +557,6 @@ minimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Slider functionality
-local dragging = false
-sliderHandle.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        mainFrame.Draggable = false
-    end
-end)
-
-sliderHandle.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-        mainFrame.Draggable = true
-    end
-end)
-
--- Slider functionality
 local dragging = {radius = false, strength = false, fov = false, smoothness = false}
 
 -- Radius slider
@@ -669,8 +653,8 @@ end)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed then
         if waitingForKeybind then
-            waitingForKeybind = true
-            local keyName = "LMB"
+            waitingForKeybind = false
+            local keyName = ""
             
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                 keyName = "LMB"
@@ -914,13 +898,13 @@ RunService.RenderStepped:Connect(function()
         fov.Position = mousePos
         fov.Radius = settings.aimAssistFOV
         fov.Color = colorSettings.aimFOVColor
-        fov.Visible = true
+        fov.Visible = aimAssistActive and settings.aimAssistEnabled
     elseif fovCircle then
         fovCircle.Visible = false
     end
     
-    -- Aim Assist
-    if aimAssistActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+    -- Aim Assist (ทำงานเฉพาะเมื่อกดปุ่มค้าง)
+    if aimAssistActive and settings.aimAssistEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         local target = getClosestTarget()
         if target and target.Character then
             local targetPart = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
