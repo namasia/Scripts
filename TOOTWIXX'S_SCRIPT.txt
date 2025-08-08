@@ -1,0 +1,1099 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Settings
+local settings = {
+    trackingEnabled = true,
+    trackingRadius = 100,
+    showOnlyEnemies = false,
+    showNameTags = true,
+    showHighlights = true,
+    showHealthBars = true,
+    showBoxESP = true,
+    showTracers = true,
+    showDistance = true,
+    showSkeletons = true,
+    tracerOrigin = "Mouse",
+    aimAssistEnabled = true,
+    aimAssistStrength = 1.0,
+    aimAssistFOV = 100,
+    aimAssistSmoothness = 0.5,
+    showAimFOV = true,
+    aimAssistKey = "LMB",
+    aimAssistKeyType = "Mouse",
+    aimAssistKeyCode = Enum.UserInputType.MouseButton1,
+}
+
+local colorSettings = {
+    highlightVisible = Color3.fromRGB(0,255,0),
+    highlightHidden = Color3.fromRGB(255,0,0),
+    nameTagVisible = Color3.fromRGB(0,255,0),
+    nameTagHidden = Color3.fromRGB(255,0,0),
+    healthBarVisible = Color3.fromRGB(0,255,0),
+    healthBarHidden = Color3.fromRGB(255,0,0),
+    tracerVisible = Color3.fromRGB(0,255,0),
+    tracerHidden = Color3.fromRGB(255,0,0),
+    skeletonVisible = Color3.fromRGB(255,255,255),
+    skeletonHidden = Color3.fromRGB(255,0,0),
+    aimFOVColor = Color3.fromRGB(255,255,255),
+}
+
+local highlights, nameTags, boxEspCache, tracerCache, skeletonCache = {}, {}, {}, {}, {}
+local currentTab = "Main"
+local aimAssistActive = false
+local fovCircle = nil
+local waitingForKeybind = false
+
+-- Helper functions
+local function updateCheckbox(btn, state)
+    btn.Text = state and "✓" or ""
+    btn.BackgroundColor3 = state and Color3.fromRGB(50,120,200) or Color3.fromRGB(60,30,30)
+end
+
+local function updateTabButton(btn, isActive)
+    btn.BackgroundColor3 = isActive and Color3.fromRGB(50,120,200) or Color3.fromRGB(25,40,65)
+    btn.TextColor3 = isActive and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)
+end
+
+-- GUI Creation
+print("Creating ESP GUI...")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ESPGui"
+screenGui.ResetOnSpawn = false
+
+-- Wait for PlayerGui to be ready
+local success, err = pcall(function()
+    screenGui.Parent = LocalPlayer.PlayerGui
+end)
+
+if not success then
+    wait(1)
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 800, 0, 450)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 25, 45)
+mainFrame.BorderSizePixel = 2
+mainFrame.BorderColor3 = Color3.fromRGB(50, 80, 150)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundColor3 = Color3.fromRGB(25, 45, 85)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0.5, -50, 1, 0)
+titleLabel.Position = UDim2.new(0, 15, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Tootwixx's SCRIPTS"
+titleLabel.TextColor3 = Color3.fromRGB(220, 240, 255)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 20
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local scamWarning = Instance.new("TextLabel")
+scamWarning.Size = UDim2.new(0.5, -50, 1, 0)
+scamWarning.Position = UDim2.new(0.5, 0, 0, 0)
+scamWarning.BackgroundTransparency = 1
+scamWarning.Text = "IF YOU PAID FOR THIS YOU GOT SCAMMED"
+scamWarning.TextColor3 = Color3.fromRGB(255, 100, 100)
+scamWarning.Font = Enum.Font.SourceSansBold
+scamWarning.TextSize = 14
+scamWarning.TextXAlignment = Enum.TextXAlignment.Right
+scamWarning.Parent = titleBar
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 35, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -45, 0, 7)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+minimizeBtn.Text = "-"
+minimizeBtn.Font = Enum.Font.SourceSansBold
+minimizeBtn.TextSize = 18
+minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+minimizeBtn.BorderSizePixel = 0
+minimizeBtn.Parent = titleBar
+
+-- Tab Bar
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, 0, 0, 45)
+tabBar.Position = UDim2.new(0, 0, 0, 40)
+tabBar.BackgroundColor3 = Color3.fromRGB(20, 35, 60)
+tabBar.BorderSizePixel = 0
+tabBar.Parent = mainFrame
+
+local mainTabBtn = Instance.new("TextButton")
+mainTabBtn.Size = UDim2.new(0.25, -5, 1, -10)
+mainTabBtn.Position = UDim2.new(0, 5, 0, 5)
+mainTabBtn.Text = "Main"
+mainTabBtn.Font = Enum.Font.SourceSansBold
+mainTabBtn.TextSize = 16
+mainTabBtn.BorderSizePixel = 0
+updateTabButton(mainTabBtn, true)
+mainTabBtn.Parent = tabBar
+
+local visualTabBtn = Instance.new("TextButton")
+visualTabBtn.Size = UDim2.new(0.25, -5, 1, -10)
+visualTabBtn.Position = UDim2.new(0.25, 5, 0, 5)
+visualTabBtn.Text = "Visual"
+visualTabBtn.Font = Enum.Font.SourceSansBold
+visualTabBtn.TextSize = 16
+visualTabBtn.BorderSizePixel = 0
+updateTabButton(visualTabBtn, false)
+visualTabBtn.Parent = tabBar
+
+local aimTabBtn = Instance.new("TextButton")
+aimTabBtn.Size = UDim2.new(0.25, -5, 1, -10)
+aimTabBtn.Position = UDim2.new(0.5, 5, 0, 5)
+aimTabBtn.Text = "Aim"
+aimTabBtn.Font = Enum.Font.SourceSansBold
+aimTabBtn.TextSize = 16
+aimTabBtn.BorderSizePixel = 0
+updateTabButton(aimTabBtn, false)
+aimTabBtn.Parent = tabBar
+
+local colorTabBtn = Instance.new("TextButton")
+colorTabBtn.Size = UDim2.new(0.25, -5, 1, -10)
+colorTabBtn.Position = UDim2.new(0.75, 5, 0, 5)
+colorTabBtn.Text = "Colors"
+colorTabBtn.Font = Enum.Font.SourceSansBold
+colorTabBtn.TextSize = 16
+colorTabBtn.BorderSizePixel = 0
+updateTabButton(colorTabBtn, false)
+colorTabBtn.Parent = tabBar
+
+-- Content Area
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -85)
+content.Position = UDim2.new(0, 0, 0, 85)
+content.BackgroundTransparency = 1
+content.Parent = mainFrame
+
+-- Tab Frames
+local mainTab = Instance.new("Frame")
+mainTab.Size = UDim2.new(1, -20, 1, -10)
+mainTab.Position = UDim2.new(0, 10, 0, 5)
+mainTab.BackgroundTransparency = 1
+mainTab.Visible = true
+mainTab.Parent = content
+
+local visualTab = Instance.new("Frame")
+visualTab.Size = UDim2.new(1, -20, 1, -10)
+visualTab.Position = UDim2.new(0, 10, 0, 5)
+visualTab.BackgroundTransparency = 1
+visualTab.Visible = false
+visualTab.Parent = content
+
+local aimTab = Instance.new("Frame")
+aimTab.Size = UDim2.new(1, -20, 1, -10)
+aimTab.Position = UDim2.new(0, 10, 0, 5)
+aimTab.BackgroundTransparency = 1
+aimTab.Visible = false
+aimTab.Parent = content
+
+local colorTab = Instance.new("Frame")
+colorTab.Size = UDim2.new(1, -20, 1, -10)
+colorTab.Position = UDim2.new(0, 10, 0, 5)
+colorTab.BackgroundTransparency = 1
+colorTab.Visible = false
+colorTab.Parent = content
+
+-- Tab switching
+local function switchTab(tabName)
+    currentTab = tabName
+    mainTab.Visible = (tabName == "Main")
+    visualTab.Visible = (tabName == "Visual")
+    aimTab.Visible = (tabName == "Aim")
+    colorTab.Visible = (tabName == "Colors")
+    
+    updateTabButton(mainTabBtn, tabName == "Main")
+    updateTabButton(visualTabBtn, tabName == "Visual")
+    updateTabButton(aimTabBtn, tabName == "Aim")
+    updateTabButton(colorTabBtn, tabName == "Colors")
+end
+
+mainTabBtn.MouseButton1Click:Connect(function() switchTab("Main") end)
+visualTabBtn.MouseButton1Click:Connect(function() switchTab("Visual") end)
+aimTabBtn.MouseButton1Click:Connect(function() switchTab("Aim") end)
+colorTabBtn.MouseButton1Click:Connect(function() switchTab("Colors") end)
+
+-- Helper functions for UI elements
+local function makeCheckbox(parent, labelText, posY, settingKey)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0.48, -10, 0, 35)
+    frame.Position = UDim2.new((posY % 2) * 0.52, 0, 0, math.floor(posY / 2) * 40)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = labelText
+    lbl.Size = UDim2.new(0.7, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(220, 240, 255)
+    lbl.Font = Enum.Font.SourceSans
+    lbl.TextSize = 14
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = frame
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 30, 0, 30)
+    btn.Position = UDim2.new(0.75, 0, 0, 2)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 18
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.BorderSizePixel = 0
+    updateCheckbox(btn, settings[settingKey])
+    btn.Parent = frame
+
+    btn.MouseButton1Click:Connect(function()
+        settings[settingKey] = not settings[settingKey]
+        updateCheckbox(btn, settings[settingKey])
+    end)
+end
+
+local function makeColorPicker(parent, labelText, posY, colorKey)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0.48, -10, 0, 35)
+    frame.Position = UDim2.new((posY % 2) * 0.52, 0, 0, math.floor(posY / 2) * 40)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = labelText
+    lbl.Size = UDim2.new(0.65, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(220, 240, 255)
+    lbl.Font = Enum.Font.SourceSans
+    lbl.TextSize = 14
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = frame
+
+    local picker = Instance.new("TextButton")
+    picker.Size = UDim2.new(0, 35, 0, 25)
+    picker.Position = UDim2.new(0.7, 0, 0, 5)
+    picker.BackgroundColor3 = colorSettings[colorKey]
+    picker.Text = ""
+    picker.BorderSizePixel = 1
+    picker.BorderColor3 = Color3.fromRGB(100, 120, 150)
+    picker.Parent = frame
+
+    local presets = {
+        Color3.fromRGB(0,255,0), Color3.fromRGB(255,0,0),
+        Color3.fromRGB(0,0,255), Color3.fromRGB(255,255,0),
+        Color3.fromRGB(255,165,0), Color3.fromRGB(255,0,255),
+        Color3.fromRGB(0,255,255), Color3.fromRGB(255,255,255)
+    }
+    local idx = 1
+    picker.MouseButton1Click:Connect(function()
+        idx = idx % #presets + 1
+        colorSettings[colorKey] = presets[idx]
+        picker.BackgroundColor3 = presets[idx]
+    end)
+end
+
+-- MAIN TAB CONTENT
+local mainLabel = Instance.new("TextLabel")
+mainLabel.Text = "Main Settings"
+mainLabel.Size = UDim2.new(1, 0, 0, 25)
+mainLabel.BackgroundTransparency = 1
+mainLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+mainLabel.Font = Enum.Font.SourceSansBold
+mainLabel.TextSize = 18
+mainLabel.TextXAlignment = Enum.TextXAlignment.Left
+mainLabel.Parent = mainTab
+
+makeCheckbox(mainTab, "Enable Tracking (INS)", 0, "trackingEnabled")
+makeCheckbox(mainTab, "Enemies Only", 1, "showOnlyEnemies")
+
+-- Radius Slider
+local sliderLabel = Instance.new("TextLabel")
+sliderLabel.Text = "Detection Radius: " .. settings.trackingRadius
+sliderLabel.Size = UDim2.new(1, 0, 0, 25)
+sliderLabel.Position = UDim2.new(0, 0, 0, 110)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.TextColor3 = Color3.fromRGB(220, 240, 255)
+sliderLabel.Font = Enum.Font.SourceSans
+sliderLabel.TextSize = 16
+sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+sliderLabel.Parent = mainTab
+
+local sliderBar = Instance.new("Frame")
+sliderBar.Size = UDim2.new(1, -20, 0, 25)
+sliderBar.Position = UDim2.new(0, 0, 0, 135)
+sliderBar.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
+sliderBar.BorderSizePixel = 0
+sliderBar.Parent = mainTab
+
+local sliderHandle = Instance.new("Frame")
+sliderHandle.Size = UDim2.new(0, 20, 0, 25)
+sliderHandle.Position = UDim2.new((settings.trackingRadius-10)/190, 0, 0, 0)
+sliderHandle.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+sliderHandle.BorderSizePixel = 0
+sliderHandle.Parent = sliderBar
+
+-- AIM TAB CONTENT
+local aimLabel = Instance.new("TextLabel")
+aimLabel.Text = "Aim Assist Settings"
+aimLabel.Size = UDim2.new(1, 0, 0, 25)
+aimLabel.BackgroundTransparency = 1
+aimLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+aimLabel.Font = Enum.Font.SourceSansBold
+aimLabel.TextSize = 18
+aimLabel.TextXAlignment = Enum.TextXAlignment.Left
+aimLabel.Parent = aimTab
+
+makeCheckbox(aimTab, "Enable Aim Assist", 0, "aimAssistEnabled")
+makeCheckbox(aimTab, "Show FOV Circle", 1, "showAimFOV")
+
+-- Keybind Button
+local keybindLabel = Instance.new("TextLabel")
+keybindLabel.Text = "Aim Assist Key:"
+keybindLabel.Size = UDim2.new(0.5, 0, 0, 25)
+keybindLabel.Position = UDim2.new(0, 0, 0, 90)
+keybindLabel.BackgroundTransparency = 1
+keybindLabel.TextColor3 = Color3.fromRGB(220, 240, 255)
+keybindLabel.Font = Enum.Font.SourceSans
+keybindLabel.TextSize = 16
+keybindLabel.TextXAlignment = Enum.TextXAlignment.Left
+keybindLabel.Parent = aimTab
+
+local keybindBtn = Instance.new("TextButton")
+keybindBtn.Size = UDim2.new(0.3, 0, 0, 30)
+keybindBtn.Position = UDim2.new(0.55, 0, 0, 87)
+keybindBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+keybindBtn.Text = settings.aimAssistKey
+keybindBtn.Font = Enum.Font.SourceSans
+keybindBtn.TextSize = 16
+keybindBtn.TextColor3 = Color3.new(1, 1, 1)
+keybindBtn.BorderSizePixel = 0
+keybindBtn.Parent = aimTab
+
+keybindBtn.MouseButton1Click:Connect(function()
+    if not waitingForKeybind then
+        waitingForKeybind = true
+        keybindBtn.Text = "Press any key..."
+        keybindBtn.BackgroundColor3 = Color3.fromRGB(200, 120, 50)
+    end
+end)
+
+-- Aim Assist Strength Slider
+local strengthLabel = Instance.new("TextLabel")
+strengthLabel.Text = "Strength: " .. math.floor(settings.aimAssistStrength * 100) .. "%"
+strengthLabel.Size = UDim2.new(1, 0, 0, 25)
+strengthLabel.Position = UDim2.new(0, 0, 0, 130)
+strengthLabel.BackgroundTransparency = 1
+strengthLabel.TextColor3 = Color3.fromRGB(220, 240, 255)
+strengthLabel.Font = Enum.Font.SourceSans
+strengthLabel.TextSize = 16
+strengthLabel.TextXAlignment = Enum.TextXAlignment.Left
+strengthLabel.Parent = aimTab
+
+local strengthBar = Instance.new("Frame")
+strengthBar.Size = UDim2.new(1, -20, 0, 25)
+strengthBar.Position = UDim2.new(0, 0, 0, 155)
+strengthBar.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
+strengthBar.BorderSizePixel = 0
+strengthBar.Parent = aimTab
+
+local strengthHandle = Instance.new("Frame")
+strengthHandle.Size = UDim2.new(0, 20, 0, 25)
+strengthHandle.Position = UDim2.new(settings.aimAssistStrength, 0, 0, 0)
+strengthHandle.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+strengthHandle.BorderSizePixel = 0
+strengthHandle.Parent = strengthBar
+
+-- FOV Slider
+local fovLabel = Instance.new("TextLabel")
+fovLabel.Text = "FOV Size: " .. settings.aimAssistFOV
+fovLabel.Size = UDim2.new(1, 0, 0, 25)
+fovLabel.Position = UDim2.new(0, 0, 0, 190)
+fovLabel.BackgroundTransparency = 1
+fovLabel.TextColor3 = Color3.fromRGB(220, 240, 255)
+fovLabel.Font = Enum.Font.SourceSans
+fovLabel.TextSize = 16
+fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+fovLabel.Parent = aimTab
+
+local fovBar = Instance.new("Frame")
+fovBar.Size = UDim2.new(1, -20, 0, 25)
+fovBar.Position = UDim2.new(0, 0, 0, 215)
+fovBar.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
+fovBar.BorderSizePixel = 0
+fovBar.Parent = aimTab
+
+local fovHandle = Instance.new("Frame")
+fovHandle.Size = UDim2.new(0, 20, 0, 25)
+fovHandle.Position = UDim2.new((settings.aimAssistFOV - 50) / 150, 0, 0, 0)
+fovHandle.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+fovHandle.BorderSizePixel = 0
+fovHandle.Parent = fovBar
+
+-- Smoothness Slider
+local smoothnessLabel = Instance.new("TextLabel")
+smoothnessLabel.Text = "Smoothness: " .. math.floor(settings.aimAssistSmoothness * 100) .. "%"
+smoothnessLabel.Size = UDim2.new(1, 0, 0, 25)
+smoothnessLabel.Position = UDim2.new(0, 0, 0, 250)
+smoothnessLabel.BackgroundTransparency = 1
+smoothnessLabel.TextColor3 = Color3.fromRGB(220, 240, 255)
+smoothnessLabel.Font = Enum.Font.SourceSans
+smoothnessLabel.TextSize = 16
+smoothnessLabel.TextXAlignment = Enum.TextXAlignment.Left
+smoothnessLabel.Parent = aimTab
+
+local smoothnessBar = Instance.new("Frame")
+smoothnessBar.Size = UDim2.new(1, -20, 0, 25)
+smoothnessBar.Position = UDim2.new(0, 0, 0, 275)
+smoothnessBar.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
+smoothnessBar.BorderSizePixel = 0
+smoothnessBar.Parent = aimTab
+
+local smoothnessHandle = Instance.new("Frame")
+smoothnessHandle.Size = UDim2.new(0, 20, 0, 25)
+smoothnessHandle.Position = UDim2.new(settings.aimAssistSmoothness, 0, 0, 0)
+smoothnessHandle.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+smoothnessHandle.BorderSizePixel = 0
+smoothnessHandle.Parent = smoothnessBar
+
+-- VISUAL TAB CONTENT
+local visualLabel = Instance.new("TextLabel")
+visualLabel.Text = "ESP Visual Features"
+visualLabel.Size = UDim2.new(1, 0, 0, 25)
+visualLabel.BackgroundTransparency = 1
+visualLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+visualLabel.Font = Enum.Font.SourceSansBold
+visualLabel.TextSize = 18
+visualLabel.TextXAlignment = Enum.TextXAlignment.Left
+visualLabel.Parent = visualTab
+
+makeCheckbox(visualTab, "Show Name Tags", 0, "showNameTags")
+makeCheckbox(visualTab, "Show Highlights", 1, "showHighlights")
+makeCheckbox(visualTab, "Show Health Bars", 2, "showHealthBars")
+makeCheckbox(visualTab, "Show Box ESP", 3, "showBoxESP")
+makeCheckbox(visualTab, "Show Tracers", 4, "showTracers")
+makeCheckbox(visualTab, "Show Distance", 5, "showDistance")
+makeCheckbox(visualTab, "Show Skeletons", 6, "showSkeletons")
+
+-- Tracer Origin Selector
+local tracerLabel = Instance.new("TextLabel")
+tracerLabel.Text = "Tracer Origin:"
+tracerLabel.Size = UDim2.new(0.5, 0, 0, 25)
+tracerLabel.Position = UDim2.new(0, 0, 0, 170)
+tracerLabel.BackgroundTransparency = 1
+tracerLabel.TextColor3 = Color3.fromRGB(220, 240, 255)
+tracerLabel.Font = Enum.Font.SourceSans
+tracerLabel.TextSize = 16
+tracerLabel.TextXAlignment = Enum.TextXAlignment.Left
+tracerLabel.Parent = visualTab
+
+local tracerBtn = Instance.new("TextButton")
+tracerBtn.Size = UDim2.new(0.3, 0, 0, 30)
+tracerBtn.Position = UDim2.new(0.55, 0, 0, 167)
+tracerBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+tracerBtn.Text = settings.tracerOrigin
+tracerBtn.Font = Enum.Font.SourceSans
+tracerBtn.TextSize = 16
+tracerBtn.TextColor3 = Color3.new(1, 1, 1)
+tracerBtn.BorderSizePixel = 0
+tracerBtn.Parent = visualTab
+
+local tracerOptions = {"Bottom", "Center", "Mouse"}
+tracerBtn.MouseButton1Click:Connect(function()
+    local currentIndex = 1
+    for i, option in ipairs(tracerOptions) do
+        if option == settings.tracerOrigin then
+            currentIndex = i
+            break
+        end
+    end
+    currentIndex = currentIndex % #tracerOptions + 1
+    settings.tracerOrigin = tracerOptions[currentIndex]
+    tracerBtn.Text = settings.tracerOrigin
+end)
+
+-- COLOR TAB CONTENT
+local colorLabel = Instance.new("TextLabel")
+colorLabel.Text = "Color Customization"
+colorLabel.Size = UDim2.new(1, 0, 0, 25)
+colorLabel.BackgroundTransparency = 1
+colorLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+colorLabel.Font = Enum.Font.SourceSansBold
+colorLabel.TextSize = 18
+colorLabel.TextXAlignment = Enum.TextXAlignment.Left
+colorLabel.Parent = colorTab
+
+makeColorPicker(colorTab, "Highlight Visible", 0, "highlightVisible")
+makeColorPicker(colorTab, "Highlight Hidden", 1, "highlightHidden")
+makeColorPicker(colorTab, "NameTag Visible", 2, "nameTagVisible")
+makeColorPicker(colorTab, "NameTag Hidden", 3, "nameTagHidden")
+makeColorPicker(colorTab, "HealthBar Visible", 4, "healthBarVisible")
+makeColorPicker(colorTab, "HealthBar Hidden", 5, "healthBarHidden")
+makeColorPicker(colorTab, "Tracer Visible", 6, "tracerVisible")
+makeColorPicker(colorTab, "Tracer Hidden", 7, "tracerHidden")
+makeColorPicker(colorTab, "Skeleton Visible", 8, "skeletonVisible")
+makeColorPicker(colorTab, "Skeleton Hidden", 9, "skeletonHidden")
+makeColorPicker(colorTab, "Aim FOV Circle", 10, "aimFOVColor")
+
+-- Minimize functionality
+local minimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    content.Visible = not minimized
+    tabBar.Visible = not minimized
+    mainFrame.Size = minimized and UDim2.new(0, 800, 0, 40) or UDim2.new(0, 800, 0, 450)
+    minimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- Slider functionality
+local dragging = false
+sliderHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mainFrame.Draggable = false
+    end
+end)
+
+sliderHandle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+        mainFrame.Draggable = true
+    end
+end)
+
+-- Slider functionality
+local dragging = {radius = false, strength = false, fov = false, smoothness = false}
+
+-- Radius slider
+sliderHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.radius = true
+        mainFrame.Draggable = false
+    end
+end)
+
+sliderHandle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.radius = false
+        mainFrame.Draggable = true
+    end
+end)
+
+-- Strength slider
+strengthHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.strength = true
+        mainFrame.Draggable = false
+    end
+end)
+
+strengthHandle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.strength = false
+        mainFrame.Draggable = true
+    end
+end)
+
+-- FOV slider
+fovHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.fov = true
+        mainFrame.Draggable = false
+    end
+end)
+
+fovHandle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.fov = false
+        mainFrame.Draggable = true
+    end
+end)
+
+-- Smoothness slider
+smoothnessHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.smoothness = true
+        mainFrame.Draggable = false
+    end
+end)
+
+smoothnessHandle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging.smoothness = false
+        mainFrame.Draggable = true
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        if dragging.radius then
+            local x = math.clamp(input.Position.X - sliderBar.AbsolutePosition.X, 0, sliderBar.AbsoluteSize.X)
+            local pct = x / sliderBar.AbsoluteSize.X
+            settings.trackingRadius = math.floor(10 + 190 * pct)
+            sliderHandle.Position = UDim2.new(pct, 0, 0, 0)
+            sliderLabel.Text = "Detection Radius: " .. settings.trackingRadius
+        elseif dragging.strength then
+            local x = math.clamp(input.Position.X - strengthBar.AbsolutePosition.X, 0, strengthBar.AbsoluteSize.X)
+            local pct = x / strengthBar.AbsoluteSize.X
+            settings.aimAssistStrength = math.clamp(pct, 0.1, 1)
+            strengthHandle.Position = UDim2.new(pct, 0, 0, 0)
+            strengthLabel.Text = "Strength: " .. math.floor(settings.aimAssistStrength * 100) .. "%"
+        elseif dragging.fov then
+            local x = math.clamp(input.Position.X - fovBar.AbsolutePosition.X, 0, fovBar.AbsoluteSize.X)
+            local pct = x / fovBar.AbsoluteSize.X
+            settings.aimAssistFOV = math.floor(50 + 150 * pct)
+            fovHandle.Position = UDim2.new(pct, 0, 0, 0)
+            fovLabel.Text = "FOV Size: " .. settings.aimAssistFOV
+        elseif dragging.smoothness then
+            local x = math.clamp(input.Position.X - smoothnessBar.AbsolutePosition.X, 0, smoothnessBar.AbsoluteSize.X)
+            local pct = x / smoothnessBar.AbsoluteSize.X
+            settings.aimAssistSmoothness = math.clamp(pct, 0.1, 1)
+            smoothnessHandle.Position = UDim2.new(pct, 0, 0, 0)
+            smoothnessLabel.Text = "Smoothness: " .. math.floor(settings.aimAssistSmoothness * 100) .. "%"
+        end
+    end
+end)
+
+-- Input handling
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if waitingForKeybind then
+            waitingForKeybind = false
+            local keyName = ""
+            
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                keyName = "LMB"
+                settings.aimAssistKeyType = "Mouse"
+                settings.aimAssistKeyCode = Enum.UserInputType.MouseButton1
+            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+                keyName = "RMB"
+                settings.aimAssistKeyType = "Mouse"
+                settings.aimAssistKeyCode = Enum.UserInputType.MouseButton2
+            elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
+                keyName = "MMB"
+                settings.aimAssistKeyType = "Mouse"
+                settings.aimAssistKeyCode = Enum.UserInputType.MouseButton3
+            elseif input.KeyCode ~= Enum.KeyCode.Unknown then
+                keyName = input.KeyCode.Name
+                settings.aimAssistKeyType = "Key"
+                settings.aimAssistKeyCode = input.KeyCode
+            else
+                keybindBtn.Text = settings.aimAssistKey
+                keybindBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+                return
+            end
+            
+            settings.aimAssistKey = keyName
+            keybindBtn.Text = keyName
+            keybindBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+            return
+        end
+        
+        if input.KeyCode == Enum.KeyCode.Insert then
+            settings.trackingEnabled = not settings.trackingEnabled
+        elseif (settings.aimAssistKeyType == "Key" and input.KeyCode == settings.aimAssistKeyCode) or 
+               (settings.aimAssistKeyType == "Mouse" and input.UserInputType == settings.aimAssistKeyCode) then
+            aimAssistActive = settings.aimAssistEnabled
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if (settings.aimAssistKeyType == "Key" and input.KeyCode == settings.aimAssistKeyCode) or 
+           (settings.aimAssistKeyType == "Mouse" and input.UserInputType == settings.aimAssistKeyCode) then
+            aimAssistActive = false
+        end
+    end
+end)
+
+-- Helper functions for ESP
+local function isVisible(fromPos, toPart)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, Camera}
+    raycastParams.IgnoreWater = true
+    local result = workspace:Raycast(fromPos, toPart.Position - fromPos, raycastParams)
+    return not result or result.Instance:IsDescendantOf(toPart.Parent)
+end
+
+local function getFOVCircle()
+    if not fovCircle then
+        fovCircle = Drawing.new("Circle")
+        fovCircle.Thickness = 2
+        fovCircle.Transparency = 0.8
+        fovCircle.Filled = false
+        fovCircle.Visible = false
+    end
+    return fovCircle
+end
+
+local function getClosestTarget()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if settings.showOnlyEnemies and LocalPlayer.Team == player.Team then
+                continue
+            end
+            
+            local humanoidRootPart = player.Character.HumanoidRootPart
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+            
+            if distance <= settings.trackingRadius then
+                local head = player.Character:FindFirstChild("Head")
+                local targetPart = head or humanoidRootPart
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                
+                if onScreen then
+                    local distanceFromMouse = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    
+                    if distanceFromMouse <= settings.aimAssistFOV and distanceFromMouse < shortestDistance then
+                        local visible = isVisible(Camera.CFrame.Position, targetPart)
+                        if visible then
+                            shortestDistance = distanceFromMouse
+                            closestPlayer = player
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+local function getHighlight(player)
+    if not highlights[player] then
+        local highlight = Instance.new("Highlight")
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0.2
+        highlight.Parent = Camera
+        highlights[player] = highlight
+    end
+    return highlights[player]
+end
+
+local function getNameTag(player)
+    if not nameTags[player] then
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Size = UDim2.new(0, 120, 0, 50)
+        billboardGui.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboardGui.AlwaysOnTop = true
+        billboardGui.Parent = Camera
+
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0, 18)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.TextSize = 14
+        nameLabel.Parent = billboardGui
+
+        local distanceLabel = Instance.new("TextLabel")
+        distanceLabel.Size = UDim2.new(1, 0, 0, 12)
+        distanceLabel.Position = UDim2.new(0, 0, 0, 18)
+        distanceLabel.BackgroundTransparency = 1
+        distanceLabel.Font = Enum.Font.SourceSans
+        distanceLabel.TextSize = 10
+        distanceLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        distanceLabel.Parent = billboardGui
+
+        local healthBarBG = Instance.new("Frame")
+        healthBarBG.Size = UDim2.new(1, 0, 0, 12)
+        healthBarBG.Position = UDim2.new(0, 0, 1, -12)
+        healthBarBG.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        healthBarBG.Parent = billboardGui
+
+        local healthBar = Instance.new("Frame")
+        healthBar.Size = UDim2.new(1, 0, 1, 0)
+        healthBar.BackgroundColor3 = colorSettings.healthBarVisible
+        healthBar.Parent = healthBarBG
+
+        nameTags[player] = { 
+            gui = billboardGui, 
+            name = nameLabel, 
+            distance = distanceLabel, 
+            hb = healthBar 
+        }
+    end
+    return nameTags[player]
+end
+
+local function getTracer(player)
+    if not tracerCache[player] then
+        local tracer = Drawing.new("Line")
+        tracer.Thickness = 2
+        tracer.Transparency = 1
+        tracer.Visible = false
+        tracerCache[player] = tracer
+    end
+    return tracerCache[player]
+end
+
+local function getSkeleton(player)
+    if not skeletonCache[player] then
+        local skeleton = {}
+        local connections = {
+            {"Head", "UpperTorso"},
+            {"UpperTorso", "LowerTorso"},
+            {"UpperTorso", "LeftUpperArm"},
+            {"UpperTorso", "RightUpperArm"},
+            {"LeftUpperArm", "LeftLowerArm"},
+            {"RightUpperArm", "RightLowerArm"},
+            {"LeftLowerArm", "LeftHand"},
+            {"RightLowerArm", "RightHand"},
+            {"LowerTorso", "LeftUpperLeg"},
+            {"LowerTorso", "RightUpperLeg"},
+            {"LeftUpperLeg", "LeftLowerLeg"},
+            {"RightUpperLeg", "RightLowerLeg"},
+            {"LeftLowerLeg", "LeftFoot"},
+            {"RightLowerLeg", "RightFoot"}
+        }
+        
+        for i = 1, #connections do
+            local line = Drawing.new("Line")
+            line.Thickness = 2
+            line.Transparency = 1
+            line.Visible = false
+            skeleton[i] = {line = line, from = connections[i][1], to = connections[i][2]}
+        end
+        
+        skeletonCache[player] = skeleton
+    end
+    return skeletonCache[player]
+end
+
+local function getBox(player)
+    if not boxEspCache[player] then
+        local box = Drawing.new("Square")
+        box.Thickness = 2
+        box.Transparency = 1
+        box.Filled = false
+        box.Visible = false
+        boxEspCache[player] = box
+    end
+    return boxEspCache[player]
+end
+
+-- Cleanup
+Players.PlayerRemoving:Connect(function(player)
+    if highlights[player] then highlights[player]:Destroy(); highlights[player] = nil end
+    if nameTags[player] then nameTags[player].gui:Destroy(); nameTags[player] = nil end
+    if boxEspCache[player] then boxEspCache[player]:Remove(); boxEspCache[player] = nil end
+    if tracerCache[player] then tracerCache[player]:Remove(); tracerCache[player] = nil end
+    if skeletonCache[player] then 
+        for _, bone in pairs(skeletonCache[player]) do
+            bone.line:Remove()
+        end
+        skeletonCache[player] = nil 
+    end
+end)
+
+-- Main ESP Loop
+RunService.RenderStepped:Connect(function()
+    -- FOV Circle
+    if settings.showAimFOV then
+        local fov = getFOVCircle()
+        local mousePos = UserInputService:GetMouseLocation()
+        fov.Position = mousePos
+        fov.Radius = settings.aimAssistFOV
+        fov.Color = colorSettings.aimFOVColor
+        fov.Visible = true
+    elseif fovCircle then
+        fovCircle.Visible = false
+    end
+    
+    -- Aim Assist
+    if aimAssistActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local target = getClosestTarget()
+        if target and target.Character then
+            local targetPart = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                local targetPos = targetPart.Position
+                local currentCFrame = Camera.CFrame
+                local targetCFrame = CFrame.lookAt(currentCFrame.Position, targetPos)
+                
+                -- Smooth interpolation
+                local lerpedCFrame = currentCFrame:Lerp(targetCFrame, settings.aimAssistStrength * (1 - settings.aimAssistSmoothness))
+                Camera.CFrame = lerpedCFrame
+            end
+        end
+    end
+
+    if not settings.trackingEnabled then
+        for _, h in pairs(highlights) do h.Enabled = false end
+        for _, n in pairs(nameTags) do n.gui.Enabled = false end
+        for _, b in pairs(boxEspCache) do b.Visible = false end
+        for _, t in pairs(tracerCache) do t.Visible = false end
+        for _, s in pairs(skeletonCache) do
+            for _, bone in pairs(s) do bone.line.Visible = false end
+        end
+        return
+    end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if settings.showOnlyEnemies and LocalPlayer.Team == player.Team then
+                if highlights[player] then highlights[player].Enabled = false end
+                if nameTags[player] then nameTags[player].gui.Enabled = false end
+                if boxEspCache[player] then boxEspCache[player].Visible = false end
+                if tracerCache[player] then tracerCache[player].Visible = false end
+                if skeletonCache[player] then
+                    for _, bone in pairs(skeletonCache[player]) do bone.line.Visible = false end
+                end
+                continue
+            end
+
+            local humanoidRootPart = player.Character.HumanoidRootPart
+            local distance = (Camera.CFrame.Position - humanoidRootPart.Position).Magnitude
+            if distance > settings.trackingRadius then
+                if highlights[player] then highlights[player].Enabled = false end
+                if nameTags[player] then nameTags[player].gui.Enabled = false end
+                if boxEspCache[player] then boxEspCache[player].Visible = false end
+                if tracerCache[player] then tracerCache[player].Visible = false end
+                if skeletonCache[player] then
+                    for _, bone in pairs(skeletonCache[player]) do bone.line.Visible = false end
+                end
+                continue
+            end
+
+            local visible = isVisible(Camera.CFrame.Position, humanoidRootPart)
+
+            -- Highlight
+            if settings.showHighlights then
+                local highlight = getHighlight(player)
+                highlight.Enabled = true
+                highlight.Adornee = player.Character
+                highlight.FillColor = visible and colorSettings.highlightVisible or colorSettings.highlightHidden
+                highlight.OutlineColor = highlight.FillColor
+            elseif highlights[player] then
+                highlights[player].Enabled = false
+            end
+
+            -- NameTag + HealthBar + Distance
+            if settings.showNameTags then
+                local nameTag = getNameTag(player)
+                nameTag.gui.Adornee = humanoidRootPart
+                nameTag.gui.Enabled = true
+                nameTag.name.Text = player.Name
+                nameTag.name.TextColor3 = visible and colorSettings.nameTagVisible or colorSettings.nameTagHidden
+                
+                -- Distance display
+                if settings.showDistance then
+                    nameTag.distance.Text = math.floor(distance) .. " studs"
+                    nameTag.distance.Visible = true
+                else
+                    nameTag.distance.Visible = false
+                end
+
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                local healthPercent = humanoid and math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1) or 0
+                if settings.showHealthBars then
+                    nameTag.hb.Size = UDim2.new(healthPercent, 0, 1, 0)
+                    nameTag.hb.BackgroundColor3 = visible and colorSettings.healthBarVisible or colorSettings.healthBarHidden
+                else
+                    nameTag.hb.Size = UDim2.new(0, 0, 1, 0)
+                end
+            elseif nameTags[player] then
+                nameTags[player].gui.Enabled = false
+            end
+
+            -- Tracers
+            if settings.showTracers then
+                local tracer = getTracer(player)
+                local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                if onScreen then
+                    local startPos
+                    if settings.tracerOrigin == "Bottom" then
+                        startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    elseif settings.tracerOrigin == "Center" then
+                        startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    else -- Mouse
+                        local mouse = UserInputService:GetMouseLocation()
+                        startPos = Vector2.new(mouse.X, mouse.Y)
+                    end
+                    
+                    tracer.From = startPos
+                    tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                    tracer.Color = visible and colorSettings.tracerVisible or colorSettings.tracerHidden
+                    tracer.Visible = true
+                else
+                    tracer.Visible = false
+                end
+            elseif tracerCache[player] then
+                tracerCache[player].Visible = false
+            end
+
+            -- Skeleton ESP
+            if settings.showSkeletons then
+                local skeleton = getSkeleton(player)
+                local character = player.Character
+                
+                for _, bone in pairs(skeleton) do
+                    local fromPart = character:FindFirstChild(bone.from)
+                    local toPart = character:FindFirstChild(bone.to)
+                    
+                    if fromPart and toPart then
+                        local fromPos, fromOnScreen = Camera:WorldToViewportPoint(fromPart.Position)
+                        local toPos, toOnScreen = Camera:WorldToViewportPoint(toPart.Position)
+                        
+                        if fromOnScreen and toOnScreen then
+                            bone.line.From = Vector2.new(fromPos.X, fromPos.Y)
+                            bone.line.To = Vector2.new(toPos.X, toPos.Y)
+                            bone.line.Color = visible and colorSettings.skeletonVisible or colorSettings.skeletonHidden
+                            bone.line.Visible = true
+                        else
+                            bone.line.Visible = false
+                        end
+                    else
+                        bone.line.Visible = false
+                    end
+                end
+            elseif skeletonCache[player] then
+                for _, bone in pairs(skeletonCache[player]) do
+                    bone.line.Visible = false
+                end
+            end
+
+            -- Box ESP
+            if settings.showBoxESP then
+                local box = getBox(player)
+                local characterSize = player.Character:GetExtentsSize()
+                local screenPos, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                if onScreen then
+                    local topY = Camera:WorldToViewportPoint(humanoidRootPart.Position + Vector3.new(0, characterSize.Y / 2, 0)).Y
+                    local bottomY = Camera:WorldToViewportPoint(humanoidRootPart.Position - Vector3.new(0, characterSize.Y / 2, 0)).Y
+                    local height = topY - bottomY
+                    local width = height / 2
+
+                    box.Size = Vector2.new(width, height)
+                    box.Position = Vector2.new(screenPos.X - width / 2, screenPos.Y - height / 2)
+                    box.Color = visible and colorSettings.highlightVisible or colorSettings.highlightHidden
+                    box.Visible = true
+                else
+                    box.Visible = false
+                end
+            elseif boxEspCache[player] then
+                boxEspCache[player].Visible = false
+            end
+        end
+    end
+end)
+
+print("ESP GUI loaded successfully!")
