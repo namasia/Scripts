@@ -44,9 +44,9 @@ local colorSettings = {
 
 local highlights, nameTags, boxEspCache, tracerCache, skeletonCache = {}, {}, {}, {}, {}
 local currentTab = "Main"
-local aimAssistActive = false
+local aimAssistActive = true
 local fovCircle = nil
-local waitingForKeybind = false
+local waitingForKeybind = true
 
 -- Helper functions
 local function updateCheckbox(btn, state)
