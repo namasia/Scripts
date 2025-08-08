@@ -693,14 +693,33 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if waitingForKeybind then
+            return
+        end
+        
+        if input.KeyCode == Enum.KeyCode.Insert then
+            settings.trackingEnabled = not settings.trackingEnabled
+        elseif (settings.aimAssistKeyType == "Key" and input.KeyCode == settings.aimAssistKeyCode) or 
+               (settings.aimAssistKeyType == "Mouse" and input.UserInputType == settings.aimAssistKeyCode) then
+            aimAssistActive = true
+            lastTarget = getClosestTarget()
+        end
+    end
+end)
+
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
     if not gameProcessed then
         if (settings.aimAssistKeyType == "Key" and input.KeyCode == settings.aimAssistKeyCode) or 
            (settings.aimAssistKeyType == "Mouse" and input.UserInputType == settings.aimAssistKeyCode) then
             aimAssistActive = false
+            lastTarget = nil -- ล้างเป้าเมื่อปล่อยปุ่ม
         end
     end
 end)
+
+local lastTarget = nil
 
 -- Helper functions for ESP
 local function isVisible(fromPos, toPart)
@@ -891,23 +910,27 @@ end)
 
 -- Main ESP Loop
 RunService.RenderStepped:Connect(function()
-    -- FOV Circle
     if settings.showAimFOV then
         local fov = getFOVCircle()
         local mousePos = UserInputService:GetMouseLocation()
         fov.Position = mousePos
         fov.Radius = settings.aimAssistFOV
         fov.Color = colorSettings.aimFOVColor
-        fov.Visible = aimAssistActive and settings.aimAssistEnabled
+        fov.Visible = settings.aimAssistEnabled
     elseif fovCircle then
         fovCircle.Visible = false
     end
     
-    -- Aim Assist (ทำงานเฉพาะเมื่อกดปุ่มค้าง)
+    -- Aim Assist (แก้ไขระบบล็อคเป้า)
     if aimAssistActive and settings.aimAssistEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        local target = getClosestTarget()
-        if target and target.Character then
-            local targetPart = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
+        -- ถ้ายังไม่มีเป้าหมาย หรือเป้าหมายเก่าหายไป ให้หาใหม่
+        if not lastTarget or not lastTarget.Character or not lastTarget.Character:FindFirstChild("HumanoidRootPart") then
+            lastTarget = getClosestTarget()
+        end
+        
+        -- ถ้ามีเป้าหมายที่ล็อคไว้
+        if lastTarget and lastTarget.Character then
+            local targetPart = lastTarget.Character:FindFirstChild("Head") or lastTarget.Character:FindFirstChild("HumanoidRootPart")
             if targetPart then
                 local targetPos = targetPart.Position
                 local currentCFrame = Camera.CFrame
