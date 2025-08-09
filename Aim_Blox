@@ -651,29 +651,31 @@ local CopyDiscordButton = SocialsGroupbox:CreateButton({
     end,
 }, "CopyDiscord_Button")
 
--- แก้ไขฟังก์ชัน ReturnPlayers ให้รวม Bot ด้วย
+-- แก้ไขเฉพาะฟังก์ชัน ReturnPlayers ให้รวมบอทด้วย
 local function ReturnPlayers()
     local PlayersTable = {}
     
-    -- เพิ่ม Player
+    -- เพิ่มผู้เล่นจริง
     for _, player in ipairs(Players:GetPlayers()) do
-        if table.find(PlayersTable, player) then continue end
-        table.insert(PlayersTable, player)
+        if player ~= Player and player.Character then
+            table.insert(PlayersTable, player)
+        end
     end
     
-    -- เพิ่ม Bot/NPC (Model ที่มี Humanoid แต่ไม่ใช่ Player)
-    for _, instance in ipairs(workspace:GetDescendants()) do
-        if instance:IsA("Model") and instance:FindFirstChild("Humanoid") then
+    -- เพิ่มบอท (NPC) จากในเกม
+    for _, npc in ipairs(workspace:GetDescendants()) do
+        if npc:IsA("Model") and npc:FindFirstChild("Humanoid") then
+            -- ตรวจสอบว่าไม่ใช่ตัวผู้เล่น
             local isPlayer = false
             for _, player in ipairs(Players:GetPlayers()) do
-                if player.Character and player.Character == instance then
+                if player.Character == npc then
                     isPlayer = true
                     break
                 end
             end
             
-            if not isPlayer and not table.find(PlayersTable, instance) then
-                table.insert(PlayersTable, instance)
+            if not isPlayer and npc:FindFirstChild("HumanoidRootPart") then
+                table.insert(PlayersTable, npc) -- เพิ่มบอทเข้าไปในตารางเป้าหมาย
             end
         end
     end
@@ -681,21 +683,23 @@ local function ReturnPlayers()
     return PlayersTable
 end
 
-local function GetPlayerDistance(target)
-    local targetCharacter = if typeof(target) == "Instance" and target:IsA("Player") then target.Character else target
-    local targetHumanoidRootPart = targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart")
+local function GetPlayerDistance(targetPlayer)
+    local targetCharacter = targetPlayer.Character
+    local targetHumanoidRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
 
     local Character = Player.Character
-    local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
 
-    if not targetHumanoidRootPart or not HumanoidRootPart then return math.huge end
+    if not targetHumanoidRootPart or not HumanoidRootPart then return end
 
-    return (targetHumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+    local Magnitude = (targetHumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+
+    return Magnitude
 end
 
-local function GetMouseDistanceToPlayer(target)
+local function GetMouseDistanceToPlayer(player)
     local camera = workspace.CurrentCamera
-    local char = if typeof(target) == "Instance" and target:IsA("Player") then target.Character else target
+    local char = player.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then
         return math.huge
@@ -704,6 +708,7 @@ local function GetMouseDistanceToPlayer(target)
     -- project to screen
     local screenPoint, onScreen = camera:WorldToScreenPoint(root.Position)
     if screenPoint.Z <= 0 then
+        -- behind the camera
         return math.huge
     end
 
@@ -765,16 +770,16 @@ local function GetLowestHealth(PlayersTable)
     local lowestHealth = math.huge
     local shortestDistance = Aimbot.Range
 
-    for _, target in ipairs(PlayersTable) do
-        if target ~= Player then
-            local char = if typeof(target) == "Instance" and target:IsA("Player") then target.Character else target
+     for _, player in ipairs(PlayersTable) do
+        if player ~= Player then
+            local char = player.Character
             if char then
                 local humanoid = char:FindFirstChild("Humanoid")
                 if humanoid then
-                    local dist = GetPlayerDistance(target)
-                    local checkFOV = (GetMouseDistanceToPlayer(target) < Aimbot.FOV)
+                    local dist = GetPlayerDistance(player)
+                    local checkFOV = (GetMouseDistanceToPlayer(player) < Aimbot.FOV)
                     if humanoid.Health < lowestHealth and dist < shortestDistance and checkFOV then
-                        lowestPlayer = target
+                        lowestPlayer = player
                         lowestHealth = humanoid.Health
                     end
                 end
