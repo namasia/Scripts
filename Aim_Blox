@@ -59,7 +59,7 @@ local Aimbot = {
     FOVCircle = true,
     FOV = 30,
     Range = 3000,
-    Smoothness = 1,
+    Smoothness = 1.0,
     Filtering = AimbotFiltering.ClosestToMouse,
     -- Prediction and Bullet Drop Settings
     Prediction = false,
@@ -563,7 +563,7 @@ end)
 
 local TracersToggle = ESPSettingsGroupbox:CreateToggle({
     Name = "Tracers",
-    CurrentValue = false,
+    CurrentValue = true,
     Style = 2,
     Callback = function(Value)
         Visuals.Tracers = Value
@@ -573,7 +573,7 @@ local TracersToggle = ESPSettingsGroupbox:CreateToggle({
 local rainbowing = nil
 local RainbowToggle = ESPSettingsGroupbox:CreateToggle({
     Name = "Rainbow",
-    CurrentValue = false,
+    CurrentValue = true,
     Style = 2,
     Callback = function(Value)
         Visuals.Rainbow = Value
