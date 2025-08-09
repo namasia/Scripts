@@ -911,15 +911,15 @@ end
     print(Target)
 end
 
-local function aimbotKeyUp()
-    if Aimbot.Enabled == false then return end
-
-    if Aimbotting ~= nil then
-        Aimbotting:Disconnect()
-        Aimbotting = nil
+local function aimbotKeyUp(input, gameprocessed)
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
+        isSmoothing = false -- ปิดการปรับความเนียน
+        if Aimbotting then
+            Aimbotting:Disconnect()
+            Aimbotting = nil
+        end
+        Target = nil
     end
-    Target = nil
-    --print("Fin")
 end
 
 --ปุ่มAimBot
