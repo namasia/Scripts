@@ -909,5 +909,16 @@ local function inputUp(input, gameprocessed)
     end
 end
 
+if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		aimbotKeyDown()
+    end
+end
+
+local function inputUp(input, gameprocessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		aimbotKeyUp()
+    end
+end
+
 UserInputService.InputBegan:Connect(inputDown)
 UserInputService.InputEnded:Connect(inputUp)
