@@ -895,22 +895,17 @@ local function aimbotKeyUp()
     print("Fin")
 end
 
-local UserInputService = game:GetService("UserInputService")
-
 local function inputDown(input, gameprocessed)
-    -- เปลี่ยนจาก MouseButton1 มาเป็น LeftControl
-    if input.KeyCode == Enum.KeyCode.LeftControl then
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
         aimbotKeyDown()
     end
 end
 
 local function inputUp(input, gameprocessed)
-    -- เปลี่ยนจาก MouseButton1 มาเป็น LeftControl
-    if input.KeyCode == Enum.KeyCode.LeftControl then
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
         aimbotKeyUp()
     end
 end
 
--- เชื่อมต่อ Event
 UserInputService.InputBegan:Connect(inputDown)
 UserInputService.InputEnded:Connect(inputUp)
