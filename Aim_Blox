@@ -653,10 +653,37 @@ local CopyDiscordButton = SocialsGroupbox:CreateButton({
 
 local function ReturnPlayers()
     local PlayersTable = {}
+    
+    -- เพิ่มผู้เล่นจริง
     for _, player in ipairs(Players:GetPlayers()) do
-        if table.find(PlayersTable, player) then continue end
-        table.insert(PlayersTable, player)
+        if player ~= Player then  -- กันไม่ให้ล็อกตัวเอง
+            table.insert(PlayersTable, player)
+        end
     end
+    
+    -- เพิ่มบอท/NPC โดยตรวจสอบ Humanoid ใน workspace
+    for _, model in ipairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and model:FindFirstChild("Humanoid") then
+            local isPlayerCharacter = false
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character and player.Character == model then
+                    isPlayerCharacter = true
+                    break
+                end
+            end
+            
+            if not isPlayerCharacter then
+                local bot = {
+                    Name = model.Name,
+                    Character = model,
+                    UserId = 0, -- 0 = บอท
+                    IsFriendsWith = function() return false end
+                }
+                table.insert(PlayersTable, bot)
+            end
+        end
+    end
+    
     return PlayersTable
 end
 
