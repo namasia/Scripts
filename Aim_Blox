@@ -919,7 +919,7 @@ local function aimbotKeyUp()
         Aimbotting = nil
     end
     Target = nil
-    print("Fin")
+    --print("Fin")
 end
 
 --ปุ่มAimBot
