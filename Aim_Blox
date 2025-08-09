@@ -895,17 +895,16 @@ local function aimbotKeyUp()
     print("Fin")
 end
 
+--ปุ่มAimBot
 local function inputDown(input, gameprocessed)
-    --if gameprocessed then return end
-
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then
-		aimbotKeyDown()
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
+        aimbotKeyDown()
     end
 end
 
 local function inputUp(input, gameprocessed)
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then
-		aimbotKeyUp()
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
+        aimbotKeyUp()
     end
 end
 
