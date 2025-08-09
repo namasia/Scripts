@@ -59,7 +59,7 @@ local Aimbot = {
     FOVCircle = true,
     FOV = 50,
     Range = 5000,
-    Smoothness = 0.99,
+    Smoothness = 0.95,
     Filtering = AimbotFiltering.ClosestToMouse,
     -- Prediction and Bullet Drop Settings
     Prediction = false,
@@ -74,7 +74,7 @@ local Visuals = {
     ESPHighlights = true,
     Tracers = true,
     TracerColor = Color3.fromRGB(255, 255, 255),
-    Rainbow = false,
+    Rainbow = true,
     InverseFriends = true,
     CurrentColor = Color3.new(1, 1, 1),
 }
@@ -573,7 +573,7 @@ local TracersToggle = ESPSettingsGroupbox:CreateToggle({
 local rainbowing = nil
 local RainbowToggle = ESPSettingsGroupbox:CreateToggle({
     Name = "Rainbow",
-    CurrentValue = false,
+    CurrentValue = true,
     Style = 2,
     Callback = function(Value)
         Visuals.Rainbow = Value
@@ -895,16 +895,17 @@ local function aimbotKeyUp()
     print("Fin")
 end
 
---ปุ่มAimBot
 local function inputDown(input, gameprocessed)
-    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
-        aimbotKeyDown()
+    --if gameprocessed then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		aimbotKeyDown()
     end
 end
 
 local function inputUp(input, gameprocessed)
-    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
-        aimbotKeyUp()
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		aimbotKeyUp()
     end
 end
 
