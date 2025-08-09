@@ -895,15 +895,22 @@ local function aimbotKeyUp()
     print("Fin")
 end
 
-local function inputDown(input, gameprocessed)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		aimbotKeyDown()
+-- ฟังก์ชันหลัก (ทำงานทั้งคลิกซ้ายและขวา)
+local function inputDown(input, gameProcessed)
+    if gameProcessed then return end -- ข้ามหากเกิดเหตุการณ์ใน GUI (เช่น TextBox)
+    
+    -- ตรวจสอบทั้ง MouseButton1 (คลิกซ้าย) และ MouseButton2 (คลิกขวา)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.MouseButton2 then
+        aimbotKeyDown() -- เรียกใช้ฟังก์ชันเมื่อกดปุ่มใดปุ่มหนึ่ง
     end
 end
 
-local function inputUp(input, gameprocessed)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		aimbotKeyUp()
+local function inputUp(input, gameProcessed)
+    -- ตรวจสอบทั้ง MouseButton1 และ MouseButton2
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.MouseButton2 then
+        aimbotKeyUp() -- เรียกใช้ฟังก์ชันเมื่อปล่อยปุ่ม
     end
 end
 
