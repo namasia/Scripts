@@ -651,35 +651,12 @@ local CopyDiscordButton = SocialsGroupbox:CreateButton({
     end,
 }, "CopyDiscord_Button")
 
--- แก้ไขเฉพาะฟังก์ชัน ReturnPlayers ให้รวมบอทด้วย
 local function ReturnPlayers()
     local PlayersTable = {}
-    
-    -- เพิ่มผู้เล่นจริง
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= Player and player.Character then
-            table.insert(PlayersTable, player)
-        end
+        if table.find(PlayersTable, player) then continue end
+        table.insert(PlayersTable, player)
     end
-    
-    -- เพิ่มบอท (NPC) จากในเกม
-    for _, npc in ipairs(workspace:GetDescendants()) do
-        if npc:IsA("Model") and npc:FindFirstChild("Humanoid") then
-            -- ตรวจสอบว่าไม่ใช่ตัวผู้เล่น
-            local isPlayer = false
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player.Character == npc then
-                    isPlayer = true
-                    break
-                end
-            end
-            
-            if not isPlayer and npc:FindFirstChild("HumanoidRootPart") then
-                table.insert(PlayersTable, npc) -- เพิ่มบอทเข้าไปในตารางเป้าหมาย
-            end
-        end
-    end
-    
     return PlayersTable
 end
 
