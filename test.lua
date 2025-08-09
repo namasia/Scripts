@@ -1,4 +1,4 @@
--- Aimbot with Dynamic FOV Circle and Tracer
+-- Aimbot for Players and Bots with Multi-Tracer
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -7,92 +7,101 @@ local Camera = workspace.CurrentCamera
 
 -- Configuration
 local AimSmoothness = 1.0
-local DefaultFOV = 100
-local CurrentFOV = DefaultFOV
 local ToggleKey = Enum.KeyCode.O
 local ShowESP = true
-local ShowFOV = true
 local TracerColor = Color3.fromRGB(255, 50, 50)
+local BotTracerColor = Color3.fromRGB(255, 150, 50) -- Different color for bots
 local TracerThickness = 1
-local FOVColor = Color3.fromRGB(255, 255, 255)
+local MaxTracers = 99
+local TargetBots = true -- Set to false to ignore bots
 
 -- States
 local AimLockActive = false
 local LockedTarget = nil
 local AimbotEnabled = true
 
--- Drawing objects
-local TracerLine = Drawing.new("Line")
-local FOVCircle = Drawing.new("Circle")
+-- Store all tracers
+local Tracers = {}
 
--- Initialize drawings
-function InitializeDrawings()
-    -- Tracer Line
-    TracerLine.Visible = false
-    TracerLine.Color = TracerColor
-    TracerLine.Thickness = TracerThickness
-    
-    -- FOV Circle
-    FOVCircle.Visible = ShowFOV and AimbotEnabled
-    FOVCircle.Color = FOVColor
-    FOVCircle.Thickness = 1
-    FOVCircle.Transparency = 0.5
-    FOVCircle.Filled = false
-    UpdateFOVCircle()
+-- Initialize tracers
+for i = 1, MaxTracers do
+    local tracer = Drawing.new("Line")
+    tracer.Visible = false
+    tracer.Color = TracerColor
+    tracer.Thickness = TracerThickness
+    tracer.ZIndex = 1
+    Tracers[i] = tracer
 end
 
--- Update FOV Circle
-function UpdateFOVCircle()
-    if not ShowFOV then return end
-    
-    local screenCenter = Camera.ViewportSize / 2
-    local fovRadius = math.tan(math.rad(CurrentFOV/2)) * screenCenter.X
-    
-    FOVCircle.Position = screenCenter
-    FOVCircle.Radius = fovRadius
-    FOVCircle.Visible = AimbotEnabled and ShowFOV
+-- Function to check if a character is a bot
+local function IsBot(character)
+    -- Add your bot detection logic here
+    -- Example: Check for NPC tag or specific naming convention
+    if character:FindFirstChild("IsBot") then return true end
+    if character.Name:match("Bot$") or character.Name:match("NPC$") then return true end
+    return false
 end
 
--- Target finding with FOV check
-local function GetBestTarget()
-    if not AimbotEnabled then return nil end
+-- Target finding (all visible enemies including bots)
+local function GetVisibleTargets()
+    if not AimbotEnabled then return {} end
     
-    local bestTarget, closestDistance = nil, math.huge
+    local visibleTargets = {}
     local mousePos = UserInputService:GetMouseLocation()
-    local cameraPos = Camera.CFrame.Position
-    local cameraLook = Camera.CFrame.LookVector
     
+    -- Check players
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
             local head = player.Character:FindFirstChild("Head")
             
             if humanoidRootPart and head then
-                local direction = (head.Position - cameraPos).Unit
-                local angle = math.deg(math.acos(cameraLook:Dot(direction)))
                 local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    table.insert(visibleTargets, {
+                        target = player.Character,
+                        position = Vector2.new(screenPoint.X, screenPoint.Y),
+                        distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude,
+                        isBot = false
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Check bots if enabled
+    if TargetBots then
+        for _, npc in ipairs(workspace:GetChildren()) do
+            if npc:IsA("Model") and npc ~= LocalPlayer.Character and IsBot(npc) then
+                local humanoidRootPart = npc:FindFirstChild("HumanoidRootPart")
+                local head = npc:FindFirstChild("Head")
                 
-                if onScreen and angle <= CurrentFOV/2 then
-                    local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-                    if distance < closestDistance then
-                        closestDistance = distance
-                        bestTarget = player
+                if humanoidRootPart and head then
+                    local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
+                    if onScreen then
+                        table.insert(visibleTargets, {
+                            target = npc,
+                            position = Vector2.new(screenPoint.X, screenPoint.Y),
+                            distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude,
+                            isBot = true
+                        })
                     end
                 end
             end
         end
     end
     
-    return bestTarget
+    -- Sort by distance to mouse
+    table.sort(visibleTargets, function(a, b) return a.distance < b.distance end)
+    
+    return visibleTargets
 end
 
 -- Aiming function
 local function AimAt(target)
-    if not AimbotEnabled or not target or not target.Character then return end
+    if not AimbotEnabled or not target or not target:FindFirstChild("Head") then return end
     
-    local head = target.Character:FindFirstChild("Head")
-    if not head then return end
-    
+    local head = target:FindFirstChild("Head")
     local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
     if not onScreen then return end
     
@@ -103,36 +112,60 @@ local function AimAt(target)
     mousemoverel(moveTo.X - mousePos.X, moveTo.Y - mousePos.Y)
 end
 
--- Update Tracer
-local function UpdateTracer()
-    if ShowESP and AimbotEnabled then
-        local target = LockedTarget or GetBestTarget()
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local rootPart = target.Character.HumanoidRootPart
-            local screenPoint, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-            
-            if onScreen then
-                local mousePos = UserInputService:GetMouseLocation()
-                TracerLine.From = mousePos
-                TracerLine.To = Vector2.new(screenPoint.X, screenPoint.Y)
-                TracerLine.Visible = true
-                return
-            end
+-- Update all tracers
+local function UpdateTracers()
+    if not ShowESP or not AimbotEnabled then
+        for _, tracer in ipairs(Tracers) do
+            tracer.Visible = false
+        end
+        return
+    end
+    
+    local visibleTargets = GetVisibleTargets()
+    local mousePos = UserInputService:GetMouseLocation()
+    
+    -- Hide all tracers first
+    for _, tracer in ipairs(Tracers) do
+        tracer.Visible = false
+    end
+    
+    -- Update visible tracers
+    for i, targetInfo in ipairs(visibleTargets) do
+        if i > MaxTracers then break end
+        
+        Tracers[i].From = mousePos
+        Tracers[i].To = targetInfo.position
+        Tracers[i].Visible = true
+        
+        -- Set color based on target type
+        if targetInfo.isBot then
+            Tracers[i].Color = BotTracerColor
+        else
+            Tracers[i].Color = TracerColor
+        end
+        
+        -- Highlight locked target
+        if LockedTarget and LockedTarget == targetInfo.target then
+            Tracers[i].Color = Color3.fromRGB(0, 255, 0)
+            Tracers[i].Thickness = 2
+        else
+            Tracers[i].Thickness = TracerThickness
         end
     end
-    TracerLine.Visible = false
 end
 
 -- Main loop
 RunService.RenderStepped:Connect(function()
-    UpdateFOVCircle()
-    UpdateTracer()
+    UpdateTracers()
     
     if not AimbotEnabled then return end
     
     if AimLockActive then
-        if not LockedTarget or not LockedTarget.Character or not LockedTarget.Character:FindFirstChild("Head") then
-            LockedTarget = GetBestTarget()
+        if not LockedTarget or not LockedTarget.Parent or not LockedTarget:FindFirstChild("Head") then
+            local targets = GetVisibleTargets()
+            if #targets > 0 then
+                LockedTarget = targets[1].target -- Lock closest target
+            end
         end
         
         if LockedTarget then
@@ -145,26 +178,19 @@ end)
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 and AimbotEnabled then
         AimLockActive = true
-        LockedTarget = GetBestTarget()
+        local targets = GetVisibleTargets()
+        if #targets > 0 then
+            LockedTarget = targets[1].target -- Lock closest target
+        end
     end
     
     if input.KeyCode == ToggleKey then
         AimbotEnabled = not AimbotEnabled
-        FOVCircle.Visible = AimbotEnabled and ShowFOV
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Aimbot",
             Text = AimbotEnabled and "ENABLED" or "DISABLED",
             Duration = 2
         })
-    end
-    
-    -- FOV Adjustment with Mouse Wheel
-    if input.KeyCode == Enum.KeyCode.PageUp then
-        CurrentFOV = math.min(CurrentFOV + 10, 180)
-        UpdateFOVCircle()
-    elseif input.KeyCode == Enum.KeyCode.PageDown then
-        CurrentFOV = math.max(CurrentFOV - 10, 10)
-        UpdateFOVCircle()
     end
 end)
 
@@ -175,12 +201,19 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Initial setup
-InitializeDrawings()
+-- Cleanup on script termination
+game:BindToClose(function()
+    for _, tracer in ipairs(Tracers) do
+        tracer:Remove()
+    end
+end)
+
+-- Initial notification
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "Aimbot Loaded",
-    Text = string.format("Hold LMB to lock aim\nPress O to toggle\nCurrent FOV: %d°\nPageUp/PageDown to adjust", CurrentFOV),
+    Title = "Universal Aimbot Loaded",
+    Text = string.format("Targets: %s\nHold LMB to lock aim\nPress O to toggle", 
+                         TargetBots and "Players + Bots" or "Players Only"),
     Duration = 5
 })
 
-print("Aimbot with dynamic FOV circle initialized")
+print("Universal Aimbot initialized - Targeting players and bots")
