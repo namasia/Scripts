@@ -292,7 +292,7 @@ local GravitySlider = EnvironmentGroupbox:CreateSlider({
 
 local AimbotToggle = AimbotSettingsGroupbox:CreateToggle({
     Name = "Enabled",
-    CurrentValue = false,
+    CurrentValue = true,
     Style = 2,
     Callback = function(Value)
         Aimbot.Enabled = Value
