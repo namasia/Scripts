@@ -1,4 +1,4 @@
--- Aimbot with Always-Visible Tracer (Ignores FOV)
+-- Aimbot with Dynamic FOV Circle and Tracer
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -7,10 +7,14 @@ local Camera = workspace.CurrentCamera
 
 -- Configuration
 local AimSmoothness = 1.0
+local DefaultFOV = 100
+local CurrentFOV = DefaultFOV
 local ToggleKey = Enum.KeyCode.O
 local ShowESP = true
+local ShowFOV = true
 local TracerColor = Color3.fromRGB(255, 50, 50)
 local TracerThickness = 1
+local FOVColor = Color3.fromRGB(255, 255, 255)
 
 -- States
 local AimLockActive = false
@@ -19,16 +23,44 @@ local AimbotEnabled = true
 
 -- Drawing objects
 local TracerLine = Drawing.new("Line")
-TracerLine.Visible = false
-TracerLine.Color = TracerColor
-TracerLine.Thickness = TracerThickness
+local FOVCircle = Drawing.new("Circle")
 
--- Target finding (ignores FOV)
+-- Initialize drawings
+function InitializeDrawings()
+    -- Tracer Line
+    TracerLine.Visible = false
+    TracerLine.Color = TracerColor
+    TracerLine.Thickness = TracerThickness
+    
+    -- FOV Circle
+    FOVCircle.Visible = ShowFOV and AimbotEnabled
+    FOVCircle.Color = FOVColor
+    FOVCircle.Thickness = 1
+    FOVCircle.Transparency = 0.5
+    FOVCircle.Filled = false
+    UpdateFOVCircle()
+end
+
+-- Update FOV Circle
+function UpdateFOVCircle()
+    if not ShowFOV then return end
+    
+    local screenCenter = Camera.ViewportSize / 2
+    local fovRadius = math.tan(math.rad(CurrentFOV/2)) * screenCenter.X
+    
+    FOVCircle.Position = screenCenter
+    FOVCircle.Radius = fovRadius
+    FOVCircle.Visible = AimbotEnabled and ShowFOV
+end
+
+-- Target finding with FOV check
 local function GetBestTarget()
     if not AimbotEnabled then return nil end
     
     local bestTarget, closestDistance = nil, math.huge
     local mousePos = UserInputService:GetMouseLocation()
+    local cameraPos = Camera.CFrame.Position
+    local cameraLook = Camera.CFrame.LookVector
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -36,8 +68,11 @@ local function GetBestTarget()
             local head = player.Character:FindFirstChild("Head")
             
             if humanoidRootPart and head then
+                local direction = (head.Position - cameraPos).Unit
+                local angle = math.deg(math.acos(cameraLook:Dot(direction)))
                 local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
-                if onScreen then
+                
+                if onScreen and angle <= CurrentFOV/2 then
                     local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
                     if distance < closestDistance then
                         closestDistance = distance
@@ -90,6 +125,7 @@ end
 
 -- Main loop
 RunService.RenderStepped:Connect(function()
+    UpdateFOVCircle()
     UpdateTracer()
     
     if not AimbotEnabled then return end
@@ -114,11 +150,21 @@ UserInputService.InputBegan:Connect(function(input)
     
     if input.KeyCode == ToggleKey then
         AimbotEnabled = not AimbotEnabled
+        FOVCircle.Visible = AimbotEnabled and ShowFOV
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Aimbot",
             Text = AimbotEnabled and "ENABLED" or "DISABLED",
             Duration = 2
         })
+    end
+    
+    -- FOV Adjustment with Mouse Wheel
+    if input.KeyCode == Enum.KeyCode.PageUp then
+        CurrentFOV = math.min(CurrentFOV + 10, 180)
+        UpdateFOVCircle()
+    elseif input.KeyCode == Enum.KeyCode.PageDown then
+        CurrentFOV = math.max(CurrentFOV - 10, 10)
+        UpdateFOVCircle()
     end
 end)
 
@@ -130,10 +176,11 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- Initial setup
+InitializeDrawings()
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Aimbot Loaded",
-    Text = "Hold left click to lock aim\nPress O to toggle",
+    Text = string.format("Hold LMB to lock aim\nPress O to toggle\nCurrent FOV: %d°\nPageUp/PageDown to adjust", CurrentFOV),
     Duration = 5
 })
 
-print("Aimbot with always-visible tracer initialized")
+print("Aimbot with dynamic FOV circle initialized")
