@@ -895,6 +895,7 @@ local function aimbotKeyUp()
     print("Fin")
 end
 
+local UserInputService = game:GetService("UserInputService")
 -- ฟังก์ชันหลัก (ทำงานทั้งคลิกซ้ายและขวา)
 local function inputDown(input, gameProcessed)
     if gameProcessed then return end -- ข้ามหากเกิดเหตุการณ์ใน GUI (เช่น TextBox)
