@@ -1,0 +1,913 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Starlight = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/Nebula-Softworks/Starlight-Interface-Suite/master/Source.lua"))()
+local NebulaIcons = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/Nebula-Softworks/Nebula-Icon-Library/master/Loader.lua"))()
+
+local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
+
+local espFolder = Instance.new("Folder")
+espFolder.Parent = gethui()
+
+-- Config
+
+local Actions = {
+
+    Aimbot = "ACTION_AIMBOT"
+
+}
+
+local Main = {
+    -- Character Settings
+    WalkSpeedEnabled = true,
+    WalkSpeed = 16,
+    JumpPowerEnabled = true,
+    JumpPower = 50,
+    NoClipEnabled = false,
+    -- Environment Settings
+    GravityEnabled = true,
+    Gravity = 196.2
+}
+
+local AimbotTargetPart = {
+
+    Head = "Head",
+    HumanoidRootPart = "HumanoidRootPart",
+    Torso = "Torso",
+    ["Right Arm"] = "Right Arm",
+    ["Left Arm"] = "Left Arm",
+    ["Right Leg"] = "Right Leg",
+    ["Left Leg"] = "Left Leg",
+    Legit = "Legit",
+
+}
+
+local AimbotFiltering = {
+    ClosestToMouse = "ClosestToMouse",
+    ClosestToPlayer = "ClosestToPlayer",
+    LowestHealth = "LowestHealth",
+}
+
+local Aimbot = {
+    -- Aimbot Settings
+    Enabled = true,
+    TargetPart = AimbotTargetPart.Head,
+    FOVCircle = true,
+    FOV = 30,
+    Range = 3000,
+    Smoothness = 1,
+    Filtering = AimbotFiltering.ClosestToMouse,
+    -- Prediction and Bullet Drop Settings
+    Prediction = false,
+    BulletSpeed = 1500,
+    BulletDrop = false,
+    BulletDropAmount = 50,
+}
+
+local Visuals = {
+    ESP = false,
+    ESPColor = Color3.fromRGB(255, 255, 255),
+    ESPHighlights = true,
+    Tracers = true,
+    TracerColor = Color3.fromRGB(255, 255, 255),
+    Rainbow = true,
+    InverseFriends = false,
+    CurrentColor = Color3.new(1, 1, 1),
+}
+
+local Window = Starlight:CreateWindow({
+    Name = "Dynamic Aim",
+    Subtitle = "A dynamic aiming system for Roblox games",
+    Icon = 110782178856576, -- Icon ID from Roblox
+    LoadingSettings = {
+        Title = "Dynamic Aim",
+        Subtitle = "by Sporer66846"
+    },
+
+    ConfigurationSettings = {
+        FolderName = "UserConfigs"
+    }
+})
+
+local MainSection = Window:CreateTabSection("Main")
+local MiscallaneousSection = Window:CreateTabSection("Miscellaneous")
+
+local HomeTab = MainSection:CreateTab({
+    Name = "Home",
+    Icon = NebulaIcons:GetIcon('home', 'Lucide'),
+    Columns = 2
+}, "Home_Tab")
+
+local AimbotTab = MainSection:CreateTab({
+    Name = "Aimbot",
+    Icon = NebulaIcons:GetIcon('mouse', 'Lucide'),
+    Columns = 2
+}, "Aimbot_Tab")
+
+local VisualsTab = MainSection:CreateTab({
+    Name = "Visuals",
+    Icon = NebulaIcons:GetIcon('eye', 'Lucide'),
+    Columns = 1
+}, "Visuals_Tab")
+
+--[[local SettingsTab = MiscallaneousSection:CreateTab({
+    Name = "Settings",
+    Icon = NebulaIcons:GetIcon('settings', 'Lucide'),
+    Columns = 1
+}, "Settings_Tab")]]
+
+local CreditsTab = MiscallaneousSection:CreateTab({
+    Name = "Credits",
+    Icon = NebulaIcons:GetIcon('info', 'Lucide'),
+    Columns = 3
+}, "Credits_Tab")
+
+local CharacterGroupbox = HomeTab:CreateGroupbox({
+    Name = "Character",
+    Column = 1
+}, "Character_Groupbox")
+
+local EnvironmentGroupbox = HomeTab:CreateGroupbox({
+    Name = "Environment",
+    Column = 2
+}, "Environment_Groupbox")
+
+local AimbotSettingsGroupbox = AimbotTab:CreateGroupbox({
+    Name = "Aimbot Settings",
+    Column = 1
+}, "Aimbot_Settings_Groupbox")
+
+local PredictionSettingsGroupbox = AimbotTab:CreateGroupbox({
+    Name = "Prediction Settings",
+    Column = 2
+}, "Prediction_Settings_Groupbox")
+
+local ESPSettingsGroupbox = VisualsTab:CreateGroupbox({
+    Name = "ESP Settings",
+    Column = 1
+}, "ESP_Settings_Groupbox")
+
+--[[local UISettingsGroupbox = SettingsTab:CreateGroupbox({
+    Name = "UI Settings",
+    Column = 1
+}, "UI_Settings_Groupbox")]]
+
+local CreditsGroupbox = CreditsTab:CreateGroupbox({
+    Name = "Credits",
+    Column = 1
+}, "Credits_Groupbox")
+
+local DonateGroupbox = CreditsTab:CreateGroupbox({
+    Name = "Donate",
+    Column = 2
+}, "Donate_Groupbox")
+
+local SocialsGroupbox = CreditsTab:CreateGroupbox({
+    Name = "Socials",
+    Column = 3
+}, "Socials_Groupbox")
+
+-- Character Settings
+local WalkSpeedToggle = CharacterGroupbox:CreateToggle({
+    Name = "WalkSpeed Enabled",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Main.WalkSpeedEnabled = Value
+        if Value then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Main.WalkSpeed
+        else
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16 -- Default WalkSpeed
+        end
+    end
+}, "WalkSpeed_Toggle")
+
+local WalkSpeedSlider = CharacterGroupbox:CreateSlider({
+    Name = "WalkSpeed",
+    Icon = NebulaIcons:GetIcon('chevrons-up', 'Lucide'),
+    Range = {0, 500},
+    Increment = 1,
+    CurrentValue = Main.WalkSpeed or 16,
+    Callback = function(Value)
+        Main.WalkSpeed = Value
+        if Main.WalkSpeedEnabled then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+        end
+    end
+}, "WalkSpeed_Slider")
+
+local JumpPowerToggle = CharacterGroupbox:CreateToggle({
+    Name = "JumpPower Enabled",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Main.JumpPowerEnabled = Value
+        if Value then
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = Main.JumpPower
+        else
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50 -- Default JumpPower
+        end
+    end
+}, "JumpPower_Toggle")
+
+local JumpPowerSlider = CharacterGroupbox:CreateSlider({
+    Name = "JumpPower",
+    Icon = NebulaIcons:GetIcon('arrow-big-up-dash', 'Lucide'),
+    Range = {0, 500},
+    Increment = 1,
+    CurrentValue = Main.JumpPower or 50,
+    Callback = function(Value)
+        Main.JumpPower = Value
+        if Main.JumpPowerEnabled then
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+        end
+    end
+}, "JumpPower_Slider")
+
+local Noclipping = nil
+local ClippingParts = {}
+
+local NoClipToggle = CharacterGroupbox:CreateToggle({
+    Name = "NoClip Enabled",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Main.NoClipEnabled = Value
+        if Value then
+            ClippingParts = {}
+            local function NoclipLoop()
+                if Main.NoClipEnabled == true and Player.Character ~= nil then
+                    for _, child in pairs(Player.Character:GetDescendants()) do
+                        if child:IsA("BasePart") and child.CanCollide == true then
+                            child.CanCollide = false
+                            table.insert(ClippingParts, child)
+                        end
+                    end
+                end
+            end
+            Noclipping = RunService.Stepped:Connect(NoclipLoop)
+        else
+            if Noclipping ~= nil then
+                Noclipping:Disconnect()
+                Noclipping = nil
+            end
+            for _, part in pairs(ClippingParts) do
+                part.CanCollide = true
+            end
+        end
+    end
+}, "NoClip_Toggle")
+
+local GravityToggle = EnvironmentGroupbox:CreateToggle({
+    Name = "Gravity Enabled",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Main.GravityEnabled = Value
+        if Value then
+            workspace.Gravity = Main.Gravity
+        else
+            workspace.Gravity = 196.2 -- Default JumpPower
+        end
+    end
+}, "Gravity_Toggle")
+
+local GravitySlider = EnvironmentGroupbox:CreateSlider({
+    Name = "Gravity",
+    Icon = NebulaIcons:GetIcon('earth', 'Lucide'),
+    Range = {0, 500},
+    Increment = 0.1,
+    CurrentValue = Main.Gravity or 196.2,
+    Callback = function(Value)
+        Main.Gravity = Value
+        if Main.GravityEnabled then
+           workspace.Gravity = Value
+        end
+    end
+}, "Gravity_Slider")
+
+local AimbotToggle = AimbotSettingsGroupbox:CreateToggle({
+    Name = "Enabled",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Aimbot.Enabled = Value
+    end
+}, "Aimbot_Toggle")
+
+local TargetPartLabel = AimbotSettingsGroupbox:CreateLabel({
+    Name = "Target Part"
+}, "TargetPart_Label")
+
+local TargetPartDropdown = TargetPartLabel:AddDropdown({
+    Options = {"Head", "HumanoidRootPart", "Torso", "Right Arm", "Left Arm", "Right Leg", "Left Leg", "Legit"},
+    CurrentOption = {"Head"},
+    MultipleOptions = false,
+    Callback = function(Options)
+        Aimbot.TargetPart = AimbotTargetPart[Options[1]]
+    end,
+}, "TargetPart_Dropdown")
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Color = Color3.new(1, 1, 1)
+FOVCircle.Visible = Aimbot.FOVCircle
+FOVCircle.Filled = false
+FOVCircle.Thickness = 1
+FOVCircle.NumSides = 90
+
+local function updateCircle()
+    local mouseLoc = UserInputService:GetMouseLocation()
+
+    local corrected = Vector2.new(mouseLoc.X, mouseLoc.Y)
+    FOVCircle.Position = corrected
+end
+
+local circleUpdates = nil
+local FOVCircleToggle = AimbotSettingsGroupbox:CreateToggle({
+    Name = "FOV Circle",
+    CurrentValue = true,
+    Style = 2,
+    Callback = function(Value)
+        Aimbot.FOVCircle = Value
+        if Value then
+            FOVCircle.Visible = true
+            circleUpdates = RunService.Heartbeat:Connect(updateCircle)
+        else
+            FOVCircle.Visible = false
+            if circleUpdates then
+                circleUpdates:Disconnect()
+                circleUpdates = nil
+            end
+        end
+    end
+}, "FOVCircle_Toggle")
+
+local FOVSlider = AimbotSettingsGroupbox:CreateSlider({
+    Name = "FOV",
+    Icon = NebulaIcons:GetIcon('radius', 'Lucide'),
+    Range = {0, 1000},
+    Increment = 1,
+    CurrentValue = Aimbot.FOV or 150,
+    Callback = function(Value)
+        Aimbot.FOV = Value
+        if Aimbot.FOVCircle then
+           FOVCircle.Radius = Value
+        end
+    end
+}, "FOV_Slider")
+
+local RangeSlider = AimbotSettingsGroupbox:CreateSlider({
+    Name = "Range",
+    Icon = NebulaIcons:GetIcon('binoculars', 'Lucide'),
+    Range = {0, 10000},
+    Increment = 1,
+    CurrentValue = Aimbot.Range or 1000,
+    Callback = function(Value)
+        Aimbot.Range = Value
+    end
+}, "Range_Slider")
+
+local SmoothnessSlider = AimbotSettingsGroupbox:CreateSlider({
+    Name = "Smoothness",
+    Icon = NebulaIcons:GetIcon('chart-spline', 'Lucide'),
+    Range = {0.1, 1},
+    Increment = 0.05,
+    CurrentValue = Aimbot.Smoothness or 0.5,
+    Callback = function(Value)
+        Aimbot.Smoothness = Value
+    end
+}, "Smoothness_Slider")
+
+local FilteringLabel = AimbotSettingsGroupbox:CreateLabel({
+    Name = "Filtering"
+}, "Filtering_Label")
+
+local FilteringDropdown = FilteringLabel:AddDropdown({
+    Options = {"ClosestToMouse", "ClosestToPlayer", "LowestHealth",},
+    CurrentOption = {"ClosestToMouse"},
+    MultipleOptions = false,
+    Callback = function(Options)
+        Aimbot.Filtering = AimbotFiltering[Options[1]]
+    end,
+}, "Filtering_Dropdown")
+
+local PredictionToggle = PredictionSettingsGroupbox:CreateToggle({
+    Name = "Prediction",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Aimbot.Prediction = Value
+    end
+}, "Prediction_Toggle")
+
+local BulletSpeedSlider = PredictionSettingsGroupbox:CreateSlider({
+    Name = "Bullet Speed",
+    Icon = NebulaIcons:GetIcon('gauge', 'Lucide'),
+    Range = {10, 10000},
+    Increment = 10,
+    CurrentValue = Aimbot.BulletSpeed or 1500,
+    Callback = function(Value)
+        Aimbot.BulletSpeed = Value
+    end
+}, "BulletSpeed_Slider")
+
+local BulletDropToggle = PredictionSettingsGroupbox:CreateToggle({
+    Name = "Bullet Drop",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Aimbot.BulletDrop = Value
+    end
+}, "BulletDrop_Toggle")
+
+local BulletDropSlider = PredictionSettingsGroupbox:CreateSlider({
+    Name = "Drop Amount",
+    Icon = NebulaIcons:GetIcon('arrow-down-to-line', 'Lucide'),
+    Range = {1, 200},
+    Increment = 1,
+    CurrentValue = Aimbot.BulletDropAmount or 50,
+    Callback = function(Value)
+        Aimbot.BulletDropAmount = Value
+    end
+}, "BulletDrop_Slider")
+
+local function getColorForPlayer(player)
+    local baseColor = Visuals.Rainbow and Visuals.CurrentColor or Color3.new(1, 1, 1)
+    if Visuals.InverseFriends and Player:IsFriendsWith(player.UserId) then
+        local h, s, v = baseColor:ToHSV()
+        return Color3.fromHSV((h + 0.5) % 1, s, v) -- 180° inverted hue
+    else
+        return baseColor
+    end
+end
+
+local function createESP(player)
+    if not player.Character then return end
+
+    if not espFolder:FindFirstChild(player.Name .. "_ESP") then
+        local espObject = Instance.new("Highlight")
+        espObject.Name = player.Name .. "_ESP"
+        espObject.Parent = espFolder
+        espObject.Adornee = player.Character
+        espObject.FillTransparency = 1
+        espObject.OutlineColor = getColorForPlayer(player)
+        espObject.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    else
+        -- Update the adornee in case character changed
+        espFolder[player.Name .. "_ESP"].Adornee = player.Character
+    end
+end
+
+local function addESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        createESP(player)
+    end
+end
+
+-- Hook for player joining
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        if Visuals.ESP then
+            createESP(player)
+        end
+    end)
+end)
+
+-- Hook for existing players (character respawn)
+for _, player in pairs(Players:GetPlayers()) do
+    player.CharacterAdded:Connect(function()
+        if Visuals.ESP then
+            createESP(player)
+        end
+    end)
+end
+
+-- UI toggle
+local ESPToggle = ESPSettingsGroupbox:CreateToggle({
+    Name = "Enabled",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Visuals.ESP = Value
+        if Value then
+            addESP()
+        else
+            espFolder:ClearAllChildren()
+        end
+    end
+}, "ESP_Toggle")
+
+local tracerLines = {}
+local nameTexts = {}
+
+-- Helper: Convert world position to screen position
+local function worldToScreen(pos)
+    local camera = workspace.CurrentCamera
+    local screenPos, onScreen = camera:WorldToViewportPoint(pos)
+    return Vector2.new(screenPos.X, screenPos.Y), onScreen
+end
+
+RunService.RenderStepped:Connect(function()
+     local camera = workspace.CurrentCamera
+    for _, obj in ipairs(tracerLines) do obj:Remove() end
+    for _, obj in ipairs(nameTexts) do obj:Remove() end
+    tracerLines = {}
+    nameTexts = {}
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local char = player.Character
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local head = char:FindFirstChild("Head")
+
+             local colorToUse = getColorForPlayer(player)
+
+            -- === Tracer ===
+            if Visuals.Tracers and hrp then
+                local screenPos, onScreen = worldToScreen(hrp.Position)
+                if onScreen then
+                    local line = Drawing.new("Line")
+                    line.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y) -- bottom-center
+                    line.To = screenPos
+                    line.Color = colorToUse
+                    line.Thickness = 1.5
+                    line.Transparency = 1
+                    line.Visible = true
+                    table.insert(tracerLines, line)
+                end
+            end
+
+            -- === Name ESP ===
+            if Visuals.ESP and head then
+                local namePos, onScreen = worldToScreen(head.Position + Vector3.new(0, 3, 0))
+                if onScreen then
+                    local text = Drawing.new("Text")
+                    text.Text = player.Name
+                    text.Position = namePos
+                    text.Size = 14
+                    text.Color = colorToUse
+                    text.Center = true
+                    text.Outline = true
+                    text.OutlineColor = Color3.new(0, 0, 0)
+                    text.Visible = true
+                    table.insert(nameTexts, text)
+                end
+            end
+        end
+    end
+end)
+
+local TracersToggle = ESPSettingsGroupbox:CreateToggle({
+    Name = "Tracers",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Visuals.Tracers = Value
+    end
+}, "Tracers_Toggle")
+
+local rainbowing = nil
+local RainbowToggle = ESPSettingsGroupbox:CreateToggle({
+    Name = "Rainbow",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Visuals.Rainbow = Value
+        if Value then
+            local function doRainbow()
+                local time = os.clock() -- Use time-based function for framerate independence
+                local hue = (time * 0.2) % 1 -- 0.2 = speed factor; tweak to change speed
+                Visuals.CurrentColor = Color3.fromHSV(hue, 1, 1)
+
+                for _, highlight in pairs(espFolder:GetChildren()) do
+                    if highlight:IsA("Highlight") then
+                        highlight.OutlineColor = Visuals.CurrentColor
+                    end
+                end
+            end
+
+            -- Hook into RenderStepped to update color continuously
+            rainbowing = RunService.RenderStepped:Connect(doRainbow)
+        else
+            Visuals.CurrentColor = Color3.new(1, 1, 1)
+            for _, highlight in pairs(espFolder:GetChildren()) do
+                if highlight:IsA("Highlight") then
+                    highlight.OutlineColor = Visuals.CurrentColor
+                end
+            end
+            if rainbowing then
+                rainbowing:Disconnect()
+                rainbowing = nil
+            end
+        end
+    end
+}, "Rainbow_Toggle")
+
+local InverseFriendsToggle = ESPSettingsGroupbox:CreateToggle({
+    Name = "Inverse Friends",
+    CurrentValue = false,
+    Style = 2,
+    Callback = function(Value)
+        Visuals.InverseFriends = Value
+    end
+}, "InverseFriends_Toggle")
+
+local CreditsLabel = CreditsGroupbox:CreateLabel({
+    Name = "Credits:",
+    Content = [[Script made by Sporer66846
+    UI Library made by Nebula Softworks
+    Version 1.0
+    ]],
+}, "Creator_Label")
+
+local CopyBitcoinButton = DonateGroupbox:CreateButton({
+    Name = "Copy Bitcoin Wallet",
+    Icon = NebulaIcons:GetIcon('bitcoin', 'Lucide'),
+    Style = 1,
+    Callback = function()
+        setclipboard("bc1q54wdp3xrhmrpcqnlqf72rlmmjg7c83fj30n43u")
+    end,
+}, "CopyBitcoin_Button")
+
+local CopyEtheriumButton = DonateGroupbox:CreateButton({
+    Name = "Copy Etherium Wallet",
+    Icon = NebulaIcons:GetIcon('gpu', 'Lucide'),
+    Style = 1,
+    Callback = function()
+        setclipboard("0x75BbcC2aaEdef8d5205c0B6DFCa85c20C9aE608A")
+    end,
+}, "CopyEtherium_Button")
+
+local CopyDiscordButton = SocialsGroupbox:CreateButton({
+    Name = "Copy Discord Link",
+    Icon = NebulaIcons:GetIcon('bot', 'Lucide'),
+    Style = 1,
+    Callback = function()
+        setclipboard("https://discord.gg/CSzZPNwUWY")
+    end,
+}, "CopyDiscord_Button")
+
+local function ReturnPlayers()
+    local PlayersTable = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if table.find(PlayersTable, player) then continue end
+        table.insert(PlayersTable, player)
+    end
+    return PlayersTable
+end
+
+local function GetPlayerDistance(targetPlayer)
+    local targetCharacter = targetPlayer.Character
+    local targetHumanoidRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+
+    local Character = Player.Character
+    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+
+    if not targetHumanoidRootPart or not HumanoidRootPart then return end
+
+    local Magnitude = (targetHumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+
+    return Magnitude
+end
+
+local function GetMouseDistanceToPlayer(player)
+    local camera = workspace.CurrentCamera
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then
+        return math.huge
+    end
+
+    -- project to screen
+    local screenPoint, onScreen = camera:WorldToScreenPoint(root.Position)
+    if screenPoint.Z <= 0 then
+        -- behind the camera
+        return math.huge
+    end
+
+    -- compute 2D distance
+    local dx = screenPoint.X - Mouse.X
+    local dy = screenPoint.Y - Mouse.Y
+    return math.sqrt(dx*dx + dy*dy)
+end
+
+local function GetClosestToMouse(playerList)
+    local closestPlayer    = nil
+    local shortestDistance = Aimbot.FOV
+
+    for _, player in ipairs(playerList) do
+        if player ~= Player then
+            local dist2d = GetMouseDistanceToPlayer(player)
+            if dist2d and dist2d < shortestDistance then
+                if GetPlayerDistance(player) <= Aimbot.Range then
+                    shortestDistance = dist2d
+                    closestPlayer    = player
+                end
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+local function GetClosestToPlayer(PlayersTable)
+    local closestPlayer = nil
+    local shortestDistance = Aimbot.Range
+
+    local Character = Player.Character
+    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+
+    if not HumanoidRootPart then return end
+    
+    for _, player in ipairs(PlayersTable) do
+        if player ~= Player then
+            local char = player.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local dist = GetPlayerDistance(player)
+                    local checkFOV = (GetMouseDistanceToPlayer(player) < Aimbot.FOV)
+                    if dist < shortestDistance and checkFOV then
+                        closestPlayer = player
+                        shortestDistance = dist
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+local function GetLowestHealth(PlayersTable)
+    local lowestPlayer = nil
+    local lowestHealth = math.huge
+    local shortestDistance = Aimbot.Range
+
+     for _, player in ipairs(PlayersTable) do
+        if player ~= Player then
+            local char = player.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    local dist = GetPlayerDistance(player)
+                    local checkFOV = (GetMouseDistanceToPlayer(player) < Aimbot.FOV)
+                    if humanoid.Health < lowestHealth and dist < shortestDistance and checkFOV then
+                        lowestPlayer = player
+                        lowestHealth = humanoid.Health
+                    end
+                end
+            end
+        end
+    end
+    return lowestPlayer
+end
+
+local function lookAtPosition(camera, position)
+    local newCFrame = CFrame.lookAt(camera.CFrame.Position, position)
+    camera.CFrame = camera.CFrame:Lerp(newCFrame, Aimbot.Smoothness)
+end
+
+local Aimbotting = nil
+local Target = nil
+local function aimbotKeyDown()
+    if Aimbot.Enabled == false then return end
+
+    local currentPlayerTable = ReturnPlayers()
+
+    if currentPlayerTable ~= nil and #currentPlayerTable > 0 then
+
+        if Aimbot.Filtering == AimbotFiltering.ClosestToMouse then
+            Target = GetClosestToMouse(currentPlayerTable)
+        elseif Aimbot.Filtering == AimbotFiltering.ClosestToPlayer then
+            Target = GetClosestToPlayer(currentPlayerTable)
+        elseif Aimbot.Filtering == AimbotFiltering.LowestHealth then
+            Target = GetLowestHealth(currentPlayerTable)
+        end
+
+    end
+
+    if Target == nil then return end
+
+    local character = Target.Character
+    if not character then return end
+
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+
+    local isR6 = (humanoid.RigType == Enum.HumanoidRigType.R6)
+    local mapping = {
+        Head               = "Head",
+        HumanoidRootPart   = "HumanoidRootPart",
+        Torso              = isR6 and "Torso"           or "UpperTorso",
+        ["Right Arm"]      = isR6 and "Right Arm"       or "RightUpperArm",
+        ["Left Arm"]       = isR6 and "Left Arm"        or "LeftUpperArm",
+        ["Right Leg"]      = isR6 and "Right Leg"       or "RightUpperLeg",
+        ["Left Leg"]       = isR6 and "Left Leg"        or "LeftUpperLeg",
+    }
+
+    -- 2) get the root part once and stash it
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then
+        warn("No HumanoidRootPart!  Can't fall back safely.")
+        return
+    end
+
+    -- 3) build your table in one loop, falling back to rootPart
+    local bodyParts = {}
+    for key, childName in pairs(mapping) do
+        if key == "HumanoidRootPart" then
+            bodyParts[key] = rootPart
+        else
+            bodyParts[key] = character:FindFirstChild(childName) or rootPart
+        end
+    end
+
+    local camera = workspace.CurrentCamera
+
+    local switchInterval  = 0.3
+    local lastSwitchTime  = 0
+    local currentPart     = nil
+
+    local function ManipulateCamera()
+    local position
+
+    if Aimbot.TargetPart ~= AimbotTargetPart.Legit then
+        position = bodyParts[Aimbot.TargetPart].Position
+        currentPart = nil
+        lastSwitchTime = time()
+    else
+        local now = time()
+        if not currentPart or now - lastSwitchTime >= switchInterval then
+            lastSwitchTime = now
+
+            local count = 0
+            for _, part in pairs(bodyParts) do
+                count = count + 1
+                if math.random(count) == 1 then
+                    currentPart = part
+                end
+            end
+        end
+
+        position = currentPart.Position
+    end
+
+    -- Only apply prediction if Aimbot.Prediction is true
+    if Aimbot.Prediction and Aimbot.BulletSpeed > 0 then
+        local distance = (position - camera.CFrame.Position).Magnitude
+        local bulletTravelTime = distance / Aimbot.BulletSpeed
+
+        -- Predict movement
+        if rootPart then
+            position = position + rootPart.Velocity * bulletTravelTime
+        end
+
+        -- Apply bullet drop AFTER movement prediction
+        if Aimbot.BulletDrop and Aimbot.BulletDropAmount > 0 then
+            local drop = 0.5 * Aimbot.BulletDropAmount * bulletTravelTime^2
+            print(drop)
+            position = Vector3.new(position.X, position.Y + drop, position.Z)
+        end
+    end
+
+    lookAtPosition(camera, position)
+end
+
+
+
+    Aimbotting = RunService.RenderStepped:Connect(ManipulateCamera)
+
+    print(Target)
+end
+
+local function aimbotKeyUp()
+    if Aimbot.Enabled == false then return end
+
+    if Aimbotting ~= nil then
+        Aimbotting:Disconnect()
+        Aimbotting = nil
+    end
+    Target = nil
+    print("Fin")
+end
+
+local function inputDown(input, gameprocessed)
+    --if gameprocessed then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		aimbotKeyDown()
+    end
+end
+
+local function inputUp(input, gameprocessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		aimbotKeyUp()
+    end
+end
+
+UserInputService.InputBegan:Connect(inputDown)
+UserInputService.InputEnded:Connect(inputUp)
