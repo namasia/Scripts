@@ -773,38 +773,126 @@ end
 
 local Aimbotting = nil
 local Target = nil
-local isAiming = false
-
 local function aimbotKeyDown()
-    if isAiming or not Aimbot.Enabled then return end
-    isAiming = true
-    
-    local currentPlayerTable = ReturnPlayers()
-    if not currentPlayerTable or #currentPlayerTable == 0 then return end
+    if Aimbot.Enabled == false then return end
 
-    if Aimbot.Filtering == AimbotFiltering.ClosestToMouse then
-        Target = GetClosestToMouse(currentPlayerTable)
-    elseif Aimbot.Filtering == AimbotFiltering.ClosestToPlayer then
-        Target = GetClosestToPlayer(currentPlayerTable)
-    elseif Aimbot.Filtering == AimbotFiltering.LowestHealth then
-        Target = GetLowestHealth(currentPlayerTable)
+    local currentPlayerTable = ReturnPlayers()
+
+    if currentPlayerTable ~= nil and #currentPlayerTable > 0 then
+
+        if Aimbot.Filtering == AimbotFiltering.ClosestToMouse then
+            Target = GetClosestToMouse(currentPlayerTable)
+        elseif Aimbot.Filtering == AimbotFiltering.ClosestToPlayer then
+            Target = GetClosestToPlayer(currentPlayerTable)
+        elseif Aimbot.Filtering == AimbotFiltering.LowestHealth then
+            Target = GetLowestHealth(currentPlayerTable)
+        end
+
     end
 
-    if not Target or not Target.Character then return end
-    
-    if Aimbotting then Aimbotting:Disconnect() end
+    if Target == nil then return end
+
+    local character = Target.Character
+    if not character then return end
+
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+
+    local isR6 = (humanoid.RigType == Enum.HumanoidRigType.R6)
+    local mapping = {
+        Head               = "Head",
+        HumanoidRootPart   = "HumanoidRootPart",
+        Torso              = isR6 and "Torso"           or "UpperTorso",
+        ["Right Arm"]      = isR6 and "Right Arm"       or "RightUpperArm",
+        ["Left Arm"]       = isR6 and "Left Arm"        or "LeftUpperArm",
+        ["Right Leg"]      = isR6 and "Right Leg"       or "RightUpperLeg",
+        ["Left Leg"]       = isR6 and "Left Leg"        or "LeftUpperLeg",
+    }
+
+    -- 2) get the root part once and stash it
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then
+        warn("No HumanoidRootPart!  Can't fall back safely.")
+        return
+    end
+
+    -- 3) build your table in one loop, falling back to rootPart
+    local bodyParts = {}
+    for key, childName in pairs(mapping) do
+        if key == "HumanoidRootPart" then
+            bodyParts[key] = rootPart
+        else
+            bodyParts[key] = character:FindFirstChild(childName) or rootPart
+        end
+    end
+
+    local camera = workspace.CurrentCamera
+
+    local switchInterval  = 0.3
+    local lastSwitchTime  = 0
+    local currentPart     = nil
+
+    local function ManipulateCamera()
+    local position
+
+    if Aimbot.TargetPart ~= AimbotTargetPart.Legit then
+        position = bodyParts[Aimbot.TargetPart].Position
+        currentPart = nil
+        lastSwitchTime = time()
+    else
+        local now = time()
+        if not currentPart or now - lastSwitchTime >= switchInterval then
+            lastSwitchTime = now
+
+            local count = 0
+            for _, part in pairs(bodyParts) do
+                count = count + 1
+                if math.random(count) == 1 then
+                    currentPart = part
+                end
+            end
+        end
+
+        position = currentPart.Position
+    end
+
+    -- Only apply prediction if Aimbot.Prediction is true
+    if Aimbot.Prediction and Aimbot.BulletSpeed > 0 then
+        local distance = (position - camera.CFrame.Position).Magnitude
+        local bulletTravelTime = distance / Aimbot.BulletSpeed
+
+        -- Predict movement
+        if rootPart then
+            position = position + rootPart.Velocity * bulletTravelTime
+        end
+
+        -- Apply bullet drop AFTER movement prediction
+        if Aimbot.BulletDrop and Aimbot.BulletDropAmount > 0 then
+            local drop = 0.5 * Aimbot.BulletDropAmount * bulletTravelTime^2
+            print(drop)
+            position = Vector3.new(position.X, position.Y + drop, position.Z)
+        end
+    end
+
+    lookAtPosition(camera, position)
+end
+
+
+
     Aimbotting = RunService.RenderStepped:Connect(ManipulateCamera)
+
+    print(Target)
 end
 
 local function aimbotKeyUp()
-    if not isAiming or not Aimbot.Enabled then return end
-    isAiming = false
-    
-    if Aimbotting then
+    if Aimbot.Enabled == false then return end
+
+    if Aimbotting ~= nil then
         Aimbotting:Disconnect()
         Aimbotting = nil
     end
     Target = nil
+    print("Fin")
 end
 
 --ปุ่มAimBot
