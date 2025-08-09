@@ -59,7 +59,7 @@ local Aimbot = {
     FOVCircle = true,
     FOV = 50,
     Range = 5000,
-    Smoothness = 1.0,
+    Smoothness = 0.99,
     Filtering = AimbotFiltering.ClosestToMouse,
     -- Prediction and Bullet Drop Settings
     Prediction = false,
