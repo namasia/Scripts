@@ -1,4 +1,4 @@
--- Aimbot for Players and Bots with Multi-Tracer
+-- Aimbot with 30 FOV Restriction for Players and Bots
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -10,10 +10,11 @@ local AimSmoothness = 1.0
 local ToggleKey = Enum.KeyCode.O
 local ShowESP = true
 local TracerColor = Color3.fromRGB(255, 50, 50)
-local BotTracerColor = Color3.fromRGB(255, 150, 50) -- Different color for bots
+local BotTracerColor = Color3.fromRGB(255, 150, 50)
 local TracerThickness = 1
-local MaxTracers = 99
-local TargetBots = true -- Set to false to ignore bots
+local MaxTracers = 15
+local TargetBots = true
+local MaxFOV = 30 -- Strict 30 degree FOV limit
 
 -- States
 local AimLockActive = false
@@ -35,19 +36,24 @@ end
 
 -- Function to check if a character is a bot
 local function IsBot(character)
-    -- Add your bot detection logic here
-    -- Example: Check for NPC tag or specific naming convention
     if character:FindFirstChild("IsBot") then return true end
     if character.Name:match("Bot$") or character.Name:match("NPC$") then return true end
     return false
 end
 
--- Target finding (all visible enemies including bots)
-local function GetVisibleTargets()
+-- Calculate angle between vectors
+local function GetAngleBetweenVectors(a, b)
+    return math.deg(math.acos(a:Dot(b)))
+end
+
+-- Target finding with strict 30 FOV limit
+local function GetTargetsInFOV()
     if not AimbotEnabled then return {} end
     
-    local visibleTargets = {}
+    local targetsInFOV = {}
     local mousePos = UserInputService:GetMouseLocation()
+    local cameraPos = Camera.CFrame.Position
+    local cameraLook = Camera.CFrame.LookVector
     
     -- Check players
     for _, player in ipairs(Players:GetPlayers()) do
@@ -56,13 +62,17 @@ local function GetVisibleTargets()
             local head = player.Character:FindFirstChild("Head")
             
             if humanoidRootPart and head then
+                local direction = (head.Position - cameraPos).Unit
+                local angle = GetAngleBetweenVectors(cameraLook, direction)
                 local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
-                if onScreen then
-                    table.insert(visibleTargets, {
+                
+                if onScreen and angle <= MaxFOV/2 then
+                    table.insert(targetsInFOV, {
                         target = player.Character,
                         position = Vector2.new(screenPoint.X, screenPoint.Y),
                         distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude,
-                        isBot = false
+                        isBot = false,
+                        angle = angle
                     })
                 end
             end
@@ -77,13 +87,17 @@ local function GetVisibleTargets()
                 local head = npc:FindFirstChild("Head")
                 
                 if humanoidRootPart and head then
+                    local direction = (head.Position - cameraPos).Unit
+                    local angle = GetAngleBetweenVectors(cameraLook, direction)
                     local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
-                    if onScreen then
-                        table.insert(visibleTargets, {
+                    
+                    if onScreen and angle <= MaxFOV/2 then
+                        table.insert(targetsInFOV, {
                             target = npc,
                             position = Vector2.new(screenPoint.X, screenPoint.Y),
                             distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude,
-                            isBot = true
+                            isBot = true,
+                            angle = angle
                         })
                     end
                 end
@@ -91,17 +105,25 @@ local function GetVisibleTargets()
         end
     end
     
-    -- Sort by distance to mouse
-    table.sort(visibleTargets, function(a, b) return a.distance < b.distance end)
+    -- Sort by angle (closest to crosshair first)
+    table.sort(targetsInFOV, function(a, b) return a.angle < b.angle end)
     
-    return visibleTargets
+    return targetsInFOV
 end
 
--- Aiming function
+-- Aiming function with FOV check
 local function AimAt(target)
     if not AimbotEnabled or not target or not target:FindFirstChild("Head") then return end
     
     local head = target:FindFirstChild("Head")
+    local cameraPos = Camera.CFrame.Position
+    local cameraLook = Camera.CFrame.LookVector
+    local direction = (head.Position - cameraPos).Unit
+    local angle = GetAngleBetweenVectors(cameraLook, direction)
+    
+    -- Strict FOV check before aiming
+    if angle > MaxFOV/2 then return end
+    
     local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
     if not onScreen then return end
     
@@ -112,7 +134,7 @@ local function AimAt(target)
     mousemoverel(moveTo.X - mousePos.X, moveTo.Y - mousePos.Y)
 end
 
--- Update all tracers
+-- Update all tracers (only show targets in FOV)
 local function UpdateTracers()
     if not ShowESP or not AimbotEnabled then
         for _, tracer in ipairs(Tracers) do
@@ -121,7 +143,7 @@ local function UpdateTracers()
         return
     end
     
-    local visibleTargets = GetVisibleTargets()
+    local targetsInFOV = GetTargetsInFOV()
     local mousePos = UserInputService:GetMouseLocation()
     
     -- Hide all tracers first
@@ -130,7 +152,7 @@ local function UpdateTracers()
     end
     
     -- Update visible tracers
-    for i, targetInfo in ipairs(visibleTargets) do
+    for i, targetInfo in ipairs(targetsInFOV) do
         if i > MaxTracers then break end
         
         Tracers[i].From = mousePos
@@ -162,9 +184,9 @@ RunService.RenderStepped:Connect(function()
     
     if AimLockActive then
         if not LockedTarget or not LockedTarget.Parent or not LockedTarget:FindFirstChild("Head") then
-            local targets = GetVisibleTargets()
+            local targets = GetTargetsInFOV()
             if #targets > 0 then
-                LockedTarget = targets[1].target -- Lock closest target
+                LockedTarget = targets[1].target -- Lock closest target to crosshair
             end
         end
         
@@ -178,9 +200,9 @@ end)
 UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 and AimbotEnabled then
         AimLockActive = true
-        local targets = GetVisibleTargets()
+        local targets = GetTargetsInFOV()
         if #targets > 0 then
-            LockedTarget = targets[1].target -- Lock closest target
+            LockedTarget = targets[1].target -- Lock closest target to crosshair
         end
     end
     
@@ -188,7 +210,7 @@ UserInputService.InputBegan:Connect(function(input)
         AimbotEnabled = not AimbotEnabled
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Aimbot",
-            Text = AimbotEnabled and "ENABLED" or "DISABLED",
+            Text = AimbotEnabled and string.format("ENABLED (%d° FOV)", MaxFOV) or "DISABLED",
             Duration = 2
         })
     end
@@ -201,7 +223,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Cleanup on script termination
+-- Cleanup
 game:BindToClose(function()
     for _, tracer in ipairs(Tracers) do
         tracer:Remove()
@@ -210,10 +232,10 @@ end)
 
 -- Initial notification
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "Universal Aimbot Loaded",
-    Text = string.format("Targets: %s\nHold LMB to lock aim\nPress O to toggle", 
-                         TargetBots and "Players + Bots" or "Players Only"),
+    Title = "Strict FOV Aimbot Loaded",
+    Text = string.format("%d° FOV Restriction\nTargets: %s\nHold LMB to lock aim", 
+                         MaxFOV, TargetBots and "Players + Bots" or "Players Only"),
     Duration = 5
 })
 
-print("Universal Aimbot initialized - Targeting players and bots")
+print(string.format("Aimbot initialized with strict %d° FOV restriction", MaxFOV))
