@@ -69,13 +69,13 @@ local Aimbot = {
 }
 
 local Visuals = {
-    ESP = false,
+    ESP = true,
     ESPColor = Color3.fromRGB(255, 255, 255),
     ESPHighlights = true,
     Tracers = true,
     TracerColor = Color3.fromRGB(255, 255, 255),
     Rainbow = true,
-    InverseFriends = false,
+    InverseFriends = true,
     CurrentColor = Color3.new(1, 1, 1),
 }
 
@@ -489,7 +489,7 @@ end
 -- UI toggle
 local ESPToggle = ESPSettingsGroupbox:CreateToggle({
     Name = "Enabled",
-    CurrentValue = false,
+    CurrentValue = true,
     Style = 2,
     Callback = function(Value)
         Visuals.ESP = Value
@@ -609,7 +609,7 @@ local RainbowToggle = ESPSettingsGroupbox:CreateToggle({
 
 local InverseFriendsToggle = ESPSettingsGroupbox:CreateToggle({
     Name = "Inverse Friends",
-    CurrentValue = false,
+    CurrentValue = true,
     Style = 2,
     Callback = function(Value)
         Visuals.InverseFriends = Value
