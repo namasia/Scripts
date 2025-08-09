@@ -553,7 +553,7 @@ RunService.RenderStepped:Connect(function()
                     text.Center = true
                     text.Outline = true
                     text.OutlineColor = Color3.new(0, 0, 0)
-                    text.Visible = true
+                    text.Visible = false
                     table.insert(nameTexts, text)
                 end
             end
